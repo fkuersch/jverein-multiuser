@@ -1,0 +1,4 @@
+# JetBrains IDE
+.idea/
+
+config/user.py
