@@ -1,2 +1,5 @@
 rsync = "/usr/bin/rsync"
-vboxmanage = "/usr/bin/VBoxManage"
+git = "/usr/bin/git"
+ssh = "/usr/bin/ssh"
+mysql = "/Applications/MySQLWorkbench.app/Contents/MacOS/mysql"
+mysqldump = "/Applications/MySQLWorkbench.app/Contents/MacOS/mysqldump"

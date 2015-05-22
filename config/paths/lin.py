@@ -1,2 +1,5 @@
 rsync = "/usr/bin/rsync"
-vboxmanage = "/usr/bin/VBoxManage"
+git = "/usr/bin/git"
+ssh = "/usr/bin/ssh"
+mysql = "/usr/bin/mysql"
+mysqldump = "/usr/bin/mysqldump"

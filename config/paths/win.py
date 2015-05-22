@@ -1,2 +1,5 @@
-rsync = "C:\MinGW\msys\1.0\bin\rsync.exe"
-vboxmanage = "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"
+rsync = r"C:\MinGW\msys\1.0\bin\rsync.exe"
+git = "C:\Program Files\Git\bin\git.exe"
+ssh = "C:\Program Files\Git\bin\ssh.exe"
+mysql = "C:\Program Files\MySQL\MySQL Workbench 6.3 CE\mysql.exe"
+mysqldump = "C:\Program Files\MySQL\MySQL Workbench 6.3 CE\mysqldump.exe"
