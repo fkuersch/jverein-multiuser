@@ -23,7 +23,6 @@ class NonBlockingStreamReader:
                 if line:
                     queue.put(line)
                 else:
-                    print "end of stream"
                     break  # end of stream
 
         self._t = Thread(target = _populateQueue,

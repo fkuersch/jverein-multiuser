@@ -8,7 +8,7 @@ import re
 from threading import Thread, Event
 from lib.nbstreamreader import NonBlockingStreamReader as NBSR
 import config.common
-import glob
+from time import sleep
 
 try:
     import config.user
@@ -34,11 +34,14 @@ def git_status_is_clean():
         return False
 
     # else check git status
+    git_env = os.environ.copy()
+    git_env["LANGUAGE"] = "en_US.UTF-8"
     ps = subprocess.Popen([config.user.paths.git,
                            "-C", config.user.working_dir,
                            "status"],
                           shell=False, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT)
+                          stderr=subprocess.STDOUT,
+                          env=git_env)
     output = ps.communicate()[0]
 
     for l in output.split("\n"):
@@ -149,23 +152,37 @@ def pull_and_lock():
     print "Änderungen herunterladen und sperren"
 
     if not os.path.exists(os.path.join(config.user.working_dir, ".git")):
+        print "git clone"
         # git clone
         cloneproc = subprocess.Popen(
             [config.user.paths.git, "clone", "{}:{}".format(
                 config.common.remote_host, config.common.remote_path),
              config.user.working_dir],
             shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = cloneproc.communicate()[0]
+        output, err = cloneproc.communicate()
+        print output
+        print err
+
+        if cloneproc.returncode != 0:
+            print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
+            exit(1)
 
         setup_git()  # name / email festlegen
     else:
+        print "git pull"
         # git pull
         pullproc = subprocess.Popen([config.user.paths.git,
                                      "-C", config.user.working_dir,
                                      "pull", "origin"],
                                     shell=False, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT)
-        output = pullproc.communicate()[0]
+        output, err = pullproc.communicate()
+        print output
+        print err
+
+        if pullproc.returncode != 0:
+            print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
+            exit(1)
 
     lockfile_path = os.path.join(config.user.working_dir, "lockfile")
 
@@ -345,11 +362,28 @@ def setup_jverein_paths():
         content = f.read()
 
     content = content.replace("JAMEICA_DIR", os.path.join(config.user.working_dir, "jameica"))
-    if "\\" in os.path.join("a", "b"):  # windows
-        content = content.replace("/", "\\")
+    if "\\" in os.path.join("a", "b"):  # windows-Pfade sind escaped
+        content = content.replace("\\", "\\\\")
+        content = content.replace("/", "\\\\")
 
     with open(file_path, "w") as f:
         f.write(content)
+
+    # backup original ~/.jameica.properties file
+    if os.path.exists(config.user.paths.jameica_properties):
+        # delete existing backup if there is one
+        if os.path.exists(config.user.paths.jameica_properties + ".bak"):
+            os.unlink(config.user.paths.jameica_properties + ".bak")
+        os.rename(config.user.paths.jameica_properties,
+                  config.user.paths.jameica_properties + ".bak")
+    # create new file for starting jameica without asking for the path
+    with open(config.user.paths.jameica_properties, "w") as f:
+        jameica_path = os.path.join(config.user.working_dir, "jameica")
+        if "\\" in os.path.join("a", "b"):  # windows-Pfade sind escaped
+            jameica_path = jameica_path.replace("\\", "\\\\")
+            jameica_path = jameica_path.replace(":", "\\:")  # der Doppelpunkt in dieser Datei auch
+        f.write("dir={}\n".format(jameica_path))
+        f.write("ask=false")
 
 
 def teardown_jverein_paths():
@@ -360,13 +394,14 @@ def teardown_jverein_paths():
     with open(file_path, "r") as f:
         content = f.read()
 
+    content = content.replace("\\\\", "\\")
     content = content.replace(os.path.join(config.user.working_dir, "jameica"), "JAMEICA_DIR")
     content = content.replace("\\", "/")
 
     with open(file_path, "w") as f:
         f.write(content)
 
-    # lastdir
+    # lastdir ausleeren
     valid = re.compile(r"^(lastdir(\.sepa)?=).*$")  # r"\"(.*)\" {(.*)}")
     for filename in ["de.jost_net.JVerein.gui.control.AbrechnungSEPAControl.properties",
                      "de.jost_net.JVerein.gui.dialogs.ImportDialog.properties",
@@ -375,7 +410,7 @@ def teardown_jverein_paths():
         with open(file_path, "r") as f:
             newcontent = ""
             for l in f:
-                newline = l #.strip()
+                newline = l
                 if len(newline) > 0:
                     match = valid.match(newline)
                     if match is not None:
@@ -385,25 +420,23 @@ def teardown_jverein_paths():
         with open(file_path, "w") as f:
             f.write(newcontent)
 
-
-def delete_logs_and_backups():
-    # log file
-    logfile = os.path.join(config.user.working_dir, "jameica", "jameica.log")
-    if os.path.exists(logfile):
-        os.unlink(logfile)
-
-    # compressed log files
-    for logfile in glob.glob(os.path.join(config.user.working_dir, "jameica","jameica.log-*.gz")):
-        os.unlink(logfile)
-
-    # backup zip files
-    for backup_file in glob.glob(os.path.join(config.user.working_dir, "jameica", "jameica-backup-*.zip")):
-        os.unlink(backup_file)
+    # remove ~/jameica.properties
+    if os.path.exists(config.user.paths.jameica_properties):
+        os.unlink(config.user.paths.jameica_properties)
+    # restore backup of original file
+    if os.path.exists(config.user.paths.jameica_properties + ".bak"):
+        os.rename(config.user.paths.jameica_properties + ".bak",
+                  config.user.paths.jameica_properties)
 
 
 def run_jverein():
     print "jVerein starten"
-    raw_input("enter drücken")
+    p = subprocess.Popen(config.user.paths.jameica_cmd,
+                         cwd=config.user.paths.jameica_cwd,
+                         shell=False, stdin=None, stdout=None, stderr=None)
+    p.wait()
+    sleep(1)
+    print "jVerein wurde beendet"
 
 
 def push_and_unlock(commit_message=""):
@@ -464,7 +497,6 @@ def setup_and_start_jverein():
     run_jverein()
     teardown_jverein_paths()
     teardown_mysql()
-    delete_logs_and_backups()
 
     response = ""
     while response not in ["j", "n"]:
