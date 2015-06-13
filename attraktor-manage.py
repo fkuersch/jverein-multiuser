@@ -252,107 +252,28 @@ def pull_and_lock():
 mysqlproc = None
 
 
-def setup_mysql():
-    print "MySQL wird eingerichtet"
-
-    ready_event = Event()
-
-    def ssh_tunnel():
-        # -N -v -L 3306:127.0.0.1:3306 attraktor@192.168.0.122
-        global mysqlproc
-        mysqlproc = subprocess.Popen([config.user.paths.ssh,
-                                      "-N", "-v", "-L", "3306:127.0.0.1:3306",
-                                      config.common.remote_mysql_host],
-                                     shell=False, stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT)
-        nbsr = NBSR(mysqlproc.stdout)
-
-        while True:
-            output = nbsr.readline(0.5)
-            if not output:
-                break
-            if "Entering interactive session" in output:
-                ready_event.set()
-
-    print "Baue SSH-Tunnel auf (Timeout 20 Sekunden)"
-    Thread(target=ssh_tunnel).start()
-    event_set = ready_event.wait(20)
-
-    # timeout
-    if not event_set:
-        print "Konnte SSH-Tunnel nicht aufbauen. Timeout nach 20 Sekunden. Blöd gelaufen."
-        exit(1)
-
-    print "SSH Tunnel steht."
-
-    print "Erstelle Datenbank jverein"
-    # DROP DATABASE IF EXISTS jverein; CREATE DATABASE jverein
-    createproc = subprocess.Popen([config.user.paths.mysql,
-                                   "-u", "root",
-                                   "--password={}".format(config.common.remote_mysql_root_pw),
-                                   "--host=127.0.0.1",
-                                   "-e", "DROP DATABASE IF EXISTS jverein; CREATE DATABASE jverein;"],
-                                  shell=False, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT)
-    output = createproc.communicate()[0]
-
-    if createproc.returncode != 0:
-        print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
-        exit(1)
-
-    print "Befülle die Datenbank jverein mit Daten... (kann einen Moment dauern)"
-    # mysql -u root -p[root_password] [database_name] < dumpfilename.sql
+def dump_database():
+    print "H2-Datenbank wird in Datei geschrieben (mysqldump)"
+    # mysqldump für h2
     sqldump_path = os.path.join(config.user.working_dir, "jverein.sql")
-    with open(sqldump_path, "r") as f:
-        readproc = subprocess.Popen([config.user.paths.mysql,
-                                     "-u", "root",
-                                     "--password={}".format(config.common.remote_mysql_root_pw),
-                                     "--host=127.0.0.1",
-                                     "jverein"],
-                                    shell=False, stdout=subprocess.PIPE,
-                                    stdin=f,
-                                    stderr=subprocess.PIPE)
-    output, err = readproc.communicate()
-    if readproc.returncode != 0:
-        print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
-        exit(1)
-
-
-def teardown_mysql():
-    print "MySQL-Datenbank wird in Datei geschrieben (mysqldump)"
-    # mysqldump
-    sqldump_path = os.path.join(config.user.working_dir, "jverein.sql")
-    with open(sqldump_path, "w") as f:
-        dumpproc = subprocess.Popen([config.user.paths.mysqldump,
-                                     "-u", "root",
-                                     "--password={}".format(config.common.remote_mysql_root_pw),
-                                     "--host=127.0.0.1",
-                                     "jverein"],
-                                    shell=False, stdout=f,
-                                    stderr=subprocess.PIPE)
-        output = dumpproc.communicate()[0]
+    h2_path = os.path.join(
+        config.user.working_dir, "jameica", "jverein", "h2db", "jverein")
+    jar_path = os.path.join(config.user.working_dir, "h2",
+                            config.common.h2_jar_name)
+    dumpproc = subprocess.Popen([config.user.paths.java,
+                                 "-cp", jar_path,
+                                 "org.h2.tools.Script",
+                                 "-url", "jdbc:h2:" + h2_path,
+                                 "-user", "jverein",
+                                 "-password", "jverein",
+                                 "-script", sqldump_path],
+                                shell=False, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+    output = dumpproc.communicate()[0]
 
     if dumpproc.returncode != 0:
         print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
         exit(1)
-
-    print "Entferne die Datenbank jverein"
-    # DROP DATABASE jverein
-    dropproc = subprocess.Popen([config.user.paths.mysql,
-                                 "-u", "root",
-                                 "--password={}".format(config.common.remote_mysql_root_pw),
-                                 "--host=127.0.0.1",
-                                 "-e", "DROP DATABASE jverein;"],
-                                shell=False, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
-    output = dropproc.communicate()[0]
-
-    if dropproc.returncode != 0:
-        print "Autsch. Da ist was gewaltig schiefgelaufen. Starte dieses Script nicht neu, sondern reparier' das vorher von Hand!."
-        exit(1)
-
-    print "Baue SSH-Tunnel ab."
-    mysqlproc.terminate()
 
 
 def setup_jverein_paths():
@@ -492,11 +413,11 @@ def push_and_unlock(commit_message=""):
 
 
 def setup_and_start_jverein():
-    setup_mysql()
     setup_jverein_paths()
     run_jverein()
+    raw_input("jVerein wurde beendet. Bitte Enter drücken.")
     teardown_jverein_paths()
-    teardown_mysql()
+    dump_database()
 
     response = ""
     while response not in ["j", "n"]:

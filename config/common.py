@@ -1,4 +1,3 @@
 remote_host = "***REMOVED***"
 remote_path = "***REMOVED***"
-remote_mysql_host = "***REMOVED***"
-remote_mysql_root_pw = "***REMOVED***"
+h2_jar_name = "h2-1.4.187.jar"
