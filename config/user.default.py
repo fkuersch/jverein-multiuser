@@ -9,7 +9,7 @@ name = "Example User"
 email = "example@example.org"
 
 # Hier liegt das jverein-Repo, ohne (Back-)Slash am Ende!
-working_dir = "***REMOVED***"
+working_dir = r"***REMOVED***"
 
 # Bei Bedarf die Pfade überschreiben (s. entsprechende Datei unter paths):
 # paths.java = "/home/user/bin/custom_java"

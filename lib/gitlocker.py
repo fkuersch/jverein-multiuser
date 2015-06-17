@@ -172,6 +172,10 @@ class GitLocker(object):
     def pull(self):
         self._ensure_git_available()
 
+        ret = self._execute_git(["pull"])[0]
+        if ret != 0:
+            raise GitError("Konnte nicht updaten. Bitte Log prüfen.")
+
         ret, out, err = self._execute_git(
             ["pull",
              "--prune", "origin", "+refs/tags/*:refs/tags/*"])
