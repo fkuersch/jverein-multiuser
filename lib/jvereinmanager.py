@@ -126,9 +126,6 @@ class JvereinManager(object):
         """
         blocking
         """
-        print jameica_path
-        print jameica_cwd
-
         FNULL = open(os.devnull, "w")
         p = subprocess.Popen(jameica_path,
                              cwd=jameica_cwd,
