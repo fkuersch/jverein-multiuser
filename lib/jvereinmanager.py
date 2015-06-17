@@ -126,8 +126,10 @@ class JvereinManager(object):
         """
         blocking
         """
+        FNULL = open(os.devnull, "w")
         p = subprocess.Popen(jameica_path,
                              cwd=jameica_cwd,
-                             shell=False, stdin=None, stdout=None, stderr=None)
+                             shell=False,
+                             stdin=None, stdout=FNULL, stderr=FNULL)
         p.wait()
         sleep(2)
