@@ -2,5 +2,6 @@
 .idea/
 
 config/user.py
+attraktor-manage.log
 
 *.pyc

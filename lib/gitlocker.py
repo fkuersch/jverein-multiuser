@@ -57,7 +57,7 @@ class GitLocker(object):
         args = [self._git_path,
                 "-C", self._working_dir,
                 ] + args
-        self._logger.info("executing: {}".format(args))
+        self._logger.info("executing: '{}'".format(" ".join(args)))
         gitproc = subprocess.Popen(args,
                                    shell=False, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
@@ -260,16 +260,3 @@ class GitLocker(object):
         ret = self._execute_git(["clean", "-d", "-f"])[0]
         if ret != 0:
             raise GitError("Konnte nicht Git cleanen.")
-
-
-if __name__ == '__main__':
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
-    gl = GitLocker("/usr/bin/git",
-                   "***REMOVED***",
-                   "***REMOVED***",
-                   "***REMOVED***",
-                   "***REMOVED***",
-                   "***REMOVED***")
-    #gl.pull_and_lock()
-    #gl.push_and_unlock()
-    print gl._sanitize_name()

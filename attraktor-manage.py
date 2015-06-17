@@ -6,6 +6,8 @@ from lib.gitlocker import GitLocker, GitError, IsLockedError
 from lib.jvereinmanager import JvereinManager
 import sys
 import traceback
+import logging
+import os.path
 
 try:
     import config.user
@@ -242,6 +244,12 @@ class AttraktorManage(object):
         return
 
 if __name__ == '__main__':
+    logging.basicConfig(filename=os.path.join(os.path.dirname(__file__),
+                                              "attraktor-manage.log"),
+                        format="[%(asctime)s] %(levelname)s: %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                        level=logging.DEBUG)
+
     try:
         am = AttraktorManage()
         am.run()
