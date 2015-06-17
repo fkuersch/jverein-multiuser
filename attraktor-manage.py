@@ -4,6 +4,8 @@
 import config.common
 from lib.gitlocker import GitLocker, GitError, IsLockedError
 from lib.jvereinmanager import JvereinManager
+import sys
+import traceback
 
 try:
     import config.user
@@ -240,6 +242,10 @@ class AttraktorManage(object):
         return
 
 if __name__ == '__main__':
-    am = AttraktorManage()
-    am.run()
+    try:
+        am = AttraktorManage()
+        am.run()
+    except:
+        traceback.print_exc(file=sys.stdout)
+
     raw_input("Ende. Mit Enter bestätigen.")
