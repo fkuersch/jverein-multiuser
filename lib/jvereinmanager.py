@@ -129,7 +129,7 @@ class JvereinManager(object):
         with NamedTemporaryFile(delete=False) as f:
             # tempfile mit SQL
             temp_path = f.name
-            f.write(r"""CALL CSVWRITE('mitglieder-emails.csv', 'SELECT LOWER(EMAIL) FROM MITGLIED ORDER BY LOWER(EMAIL)', STRINGDECODE('charset=UTF-8 escape=\" fieldDelimiter= lineSeparator=\n null= writeColumnHeader=false'));""")
+            f.write(r"""CALL CSVWRITE('mitglieder-emails.csv', 'SELECT LOWER(EMAIL) FROM MITGLIED WHERE EINTRITT <= CURDATE() AND (AUSTRITT IS NULL OR AUSTRITT > CURDATE()) ORDER BY LOWER(EMAIL)', STRINGDECODE('charset=UTF-8 escape=\" fieldDelimiter= lineSeparator=\n null= writeColumnHeader=false'));""")
 
         try:
             # SQL starten
