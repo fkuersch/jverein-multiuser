@@ -128,6 +128,10 @@ class AttraktorManage(object):
         self._jverein_manager.dump_database(config.user.paths.java,
                                             config.common.h2_jar_name)
 
+        print "jVerein-E-Mail-Liste wird erstellt"
+        self._jverein_manager.dump_emails(config.user.paths.java,
+                                          config.common.h2_jar_name)
+
     def _manage_locked_by_me_and_clean(self):
         if self._gitlocker.is_locked_by_me():
             print "    Du hast noch den exklusiven Zugriff, es gibt aber"

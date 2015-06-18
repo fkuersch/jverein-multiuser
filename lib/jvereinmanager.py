@@ -4,6 +4,7 @@ import logging
 import subprocess
 import re
 from time import sleep
+from tempfile import NamedTemporaryFile
 
 class JvereinManager(object):
 
@@ -104,7 +105,7 @@ class JvereinManager(object):
 
     def dump_database(self, java_path, h2_jar_name):
         # mysqldump für h2
-        sqldump_path = os.path.join(self._working_dir, "jverein.sql")
+        sqldump_path = os.path.join(self._working_dir, "dump", "jverein.sql")
         h2_path = os.path.join(
             self._working_dir, "jameica", "jverein", "h2db", "jverein")
         jar_path = os.path.join(self._working_dir, "h2", h2_jar_name)
@@ -121,6 +122,39 @@ class JvereinManager(object):
 
         if dumpproc.returncode != 0:
             raise Exception("Konnte H2-Datenbank nicht dumpen.")
+
+    def dump_emails(self, java_path, h2_jar_name):
+        """ E-Mail-Liste in dump/mitglieder-emails.csv speichern """
+
+        with NamedTemporaryFile(delete=False) as f:
+            # tempfile mit SQL
+            temp_path = f.name
+            f.write(r"""CALL CSVWRITE('mitglieder-emails.csv', 'SELECT LOWER(EMAIL) FROM MITGLIED ORDER BY LOWER(EMAIL)', STRINGDECODE('charset=UTF-8 escape=\" fieldDelimiter= lineSeparator=\n null= writeColumnHeader=false'));""")
+
+        try:
+            # SQL starten
+            sqldump_dir = os.path.join(self._working_dir, "dump")
+            h2_path = os.path.join(
+                self._working_dir, "jameica", "jverein", "h2db", "jverein")
+            jar_path = os.path.join(self._working_dir, "h2", h2_jar_name)
+            dumpproc = subprocess.Popen([java_path,
+                                         "-cp", jar_path,
+                                         "org.h2.tools.RunScript",
+                                         "-url", "jdbc:h2:" + h2_path,
+                                         "-user", "jverein",
+                                         "-password", "jverein",
+                                         "-script", f.name],
+                                        shell=False, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        cwd=sqldump_dir)
+            dumpproc.communicate()
+
+            if dumpproc.returncode != 0:
+                raise Exception("Konnte H2-Datenbank nicht dumpen.")
+        except Exception as e:
+            raise e
+        finally:
+            os.unlink(temp_path)
 
     def run_jverein(self, jameica_path, jameica_cwd):
         """
