@@ -1,4 +1,3 @@
-# coding=utf-8
 import os.path
 import logging
 import subprocess
@@ -6,7 +5,8 @@ import re
 from time import sleep
 from tempfile import NamedTemporaryFile
 
-class JvereinManager(object):
+
+class JvereinManager:
 
     def __init__(self, working_dir, jameica_properties_file):
         self._logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class JvereinManager(object):
                 jameica_path = jameica_path.replace("\\", "\\\\")
                 # der Doppelpunkt in dieser Datei auch
                 jameica_path = jameica_path.replace(":", "\\:")
-            f.write("dir={}\n".format(jameica_path))
+            f.write(f"dir={jameica_path}\n")
             f.write("ask=false")
 
     def teardown_jverein_paths(self):
@@ -83,8 +83,8 @@ class JvereinManager(object):
                 self._working_dir, "jameica", "cfg", filename)
             with open(file_path, "r") as f:
                 newcontent = ""
-                for l in f:
-                    newline = l
+                for line in f:
+                    newline = line
                     if len(newline) > 0:
                         match = valid.match(newline)
                         if match is not None:

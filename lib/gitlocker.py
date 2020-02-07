@@ -1,4 +1,3 @@
-# coding=utf-8
 import subprocess
 import os.path
 import logging
@@ -13,7 +12,7 @@ class GitError(Exception):
     """ Git problem """
 
 
-class GitLocker(object):
+class GitLocker:
 
     def __init__(self, git_path, working_dir, remote_host, remote_dir, name, email):
         self._logger = logging.getLogger(__name__)
@@ -57,7 +56,7 @@ class GitLocker(object):
         args = [self._git_path,
                 "-C", self._working_dir,
                 ] + args
-        self._logger.info("executing: '{}'".format(" ".join(args)))
+        self._logger.info(f"executing: '{' '.join(args)}'")
         gitproc = subprocess.Popen(args,
                                    shell=False, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
@@ -65,11 +64,11 @@ class GitLocker(object):
         output, err = gitproc.communicate()
 
         if gitproc.returncode != 0:
-            self._logger.error("RETURNCODE: {}".format(gitproc.returncode))
-            self._logger.error("STDOUT: {}".format(output))
-            self._logger.error("STDERR: {}".format(err))
+            self._logger.error(f"RETURNCODE: {gitproc.returncode}")
+            self._logger.error(f"STDOUT: {output}")
+            self._logger.error(f"STDERR: {err}")
 
-        return gitproc.returncode, output, err
+        return gitproc.returncode, output.decode(), err.decode()
 
     def _setup(self):
         """
@@ -132,13 +131,13 @@ class GitLocker(object):
         if ret != 0:
             raise GitError("Konnte den Git-Status nicht abrufen.")
 
-        for l in out.split("\n"):
-            l = l.strip()
-            if len(l) > 0:
-                self._logger.debug(l)
-                if "branch is ahead of" in l:
+        for line in out.split("\n"):
+            line = line.strip()
+            if len(line) > 0:
+                self._logger.debug(line)
+                if "branch is ahead of" in line:
                     return False
-                if "nothing to commit" in l:
+                if "nothing to commit" in line:
                     return True
         return False
 
@@ -150,11 +149,11 @@ class GitLocker(object):
         if ret != 0:
             raise GitError("Konnte den Git-Status nicht abrufen.")
 
-        for l in out.split("\n"):
-            l = l.strip()
-            if len(l) > 0:
-                self._logger.debug(l)
-                if "nothing to commit" in l:
+        for line in out.split("\n"):
+            line = line.strip()
+            if len(line) > 0:
+                self._logger.debug(line)
+                if "nothing to commit" in line:
                     return False
         return True
 
@@ -193,11 +192,11 @@ class GitLocker(object):
         is_locked_by_me = self.is_locked_by_me()
         if lock_status is not None and not is_locked_by_me:
             raise IsLockedError(
-                "Ist bereits gelockt: von {}".format(lock_status))
+                f"Ist bereits gelockt: von {lock_status}")
 
         if lock_status is not None and is_locked_by_me:
             raise IsLockedError(
-                "Ist bereits von Dir gelockt: {}".format(lock_status))
+                f"Ist bereits von Dir gelockt: {lock_status}")
 
         # no Lock acquired, create and push tag
         lock_name = self._create_lock_name()

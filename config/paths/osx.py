@@ -1,4 +1,3 @@
-# coding=utf-8
 # diese Pfade bitte nicht ändern, sondern in der user.py überschreiben,
 # da diese Datei bei Updates überschrieben wird
 from os.path import expanduser, join

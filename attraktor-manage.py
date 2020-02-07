@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding=utf-8
 
 import config.common
 from lib.gitlocker import GitLocker, GitError, IsLockedError
@@ -13,12 +12,12 @@ try:
     import config.user
 except ImportError:
     config = None
-    print "Lege bitte die Datei config/user.py an. " \
-          "Du kannst die Datei config/user.default.py als Vorlage nehmen."
+    print("Lege bitte die Datei config/user.py an. "
+          "Du kannst die Datei config/user.default.py als Vorlage nehmen.")
     exit(1)
 
 
-class AttraktorManage(object):
+class AttraktorManage:
 
     def __init__(self):
         self._gitlocker = GitLocker(config.user.paths.git,
@@ -32,10 +31,10 @@ class AttraktorManage(object):
             config.user.working_dir, config.user.paths.jameica_properties)
 
     def run(self):
-        print "Du arbeitest als"
-        print "Name/E-Mail:  {} <{}>".format(config.user.name, config.user.email)
-        print "Verzeichnis:  {}".format(config.user.working_dir)
-        print ""
+        print("Du arbeitest als")
+        print(f"Name/E-Mail:  {config.user.name} <{config.user.email}>")
+        print(f"Verzeichnis:  {config.user.working_dir}")
+        print("")
 
         # updaten, wenn Arbeitsverzeichnis sauber und wir nicht den Lock haben
         locked_by_me = self._gitlocker.is_locked_by_me()
@@ -65,19 +64,19 @@ class AttraktorManage(object):
     def _user_input(self, options):
         response = ""
         while response not in options:
-            response = raw_input("[{}] ".format("/".join(options))).lower()
-        print ""
+            response = input(f"[{'/'.join(options)}] ").lower()
+        print("")
         return response
 
     def _pull_and_lock(self):
-        print "Lade Änderungen herunter und fordere exklusiven Zugriff an."
+        print("Lade Änderungen herunter und fordere exklusiven Zugriff an.")
         try:
             self._gitlocker.pull_and_lock()
         except IsLockedError as e:
-            print e.message
+            print(e)
         except GitError as e:
-            print "FEHLER! Bitte Log prüfen."
-            print e.message
+            print("FEHLER! Bitte Log prüfen.")
+            print(e)
 
     def _upload_changes(self):
         commit_message = None
@@ -85,65 +84,65 @@ class AttraktorManage(object):
         if self._gitlocker.need_to_commit():
             commit_message = ""
             while len(commit_message) <= 0:
-                commit_message = raw_input("Was hast du getan? (kurze commit-Message): ")
+                commit_message = input("Was hast du getan? (kurze commit-Message): ")
 
-        print "Lokale Änderungen werden hochgeladen"
+        print("Lokale Änderungen werden hochgeladen")
         self._gitlocker.push(commit_message)
 
     def _ask_and_upload(self):
-        print "    Möchtest Du jetzt die Änderungen hochladen?"
+        print("    Möchtest Du jetzt die Änderungen hochladen?")
         response = self._user_input(["j", "n"])
         if response == "j":
             self._upload_changes()
             self._unlock()
             return True
         else:
-            print "    Du  hast immer noch den exklusiven Zugriff!"
-            print "    Bitte starte das Programm zeitnah neu, um ggf. weitere"
-            print "    Änderungen vorzunehmen und den exklusiven Zugriff"
-            print "    freizugeben."
+            print("    Du  hast immer noch den exklusiven Zugriff!")
+            print("    Bitte starte das Programm zeitnah neu, um ggf. weitere")
+            print("    Änderungen vorzunehmen und den exklusiven Zugriff")
+            print("    freizugeben.")
             return False
 
     def _unlock(self):
-        print "Exklusiver Zugriff wird freigegeben"
+        print("Exklusiver Zugriff wird freigegeben")
         self._gitlocker.unlock()
 
     def _discard_changes(self):
-        print "Lokale Änderungen werden gelöscht"
+        print("Lokale Änderungen werden gelöscht")
         self._gitlocker.delete_local_changes()
 
     def _run_jverein(self):
-        print "jVerein-Pfade werden für Dein System eingerichtet"
+        print("jVerein-Pfade werden für Dein System eingerichtet")
         self._jverein_manager.setup_jverein_paths()
 
-        print "jVerein wird gestartet"
+        print("jVerein wird gestartet")
         self._jverein_manager.run_jverein(config.user.paths.jameica_cmd,
                                           config.user.paths.jameica_cwd)
-        raw_input("jVerein wurde beendet. Bitte mit Enter bestätigen.")
+        input("jVerein wurde beendet. Bitte mit Enter bestätigen.")
 
-        print "jVerein-Pfade werden wieder normalisiert"
+        print("jVerein-Pfade werden wieder normalisiert")
         self._jverein_manager.teardown_jverein_paths()
 
-        print "jVerein-Datenbank wird in Datei geschrieben"
+        print("jVerein-Datenbank wird in Datei geschrieben")
         self._jverein_manager.dump_database(config.user.paths.java,
                                             config.common.h2_jar_name)
 
-        print "jVerein-E-Mail-Liste wird erstellt"
+        print("jVerein-E-Mail-Liste wird erstellt")
         self._jverein_manager.dump_emails(config.user.paths.java,
                                           config.common.h2_jar_name)
 
     def _manage_locked_by_me_and_clean(self):
         if self._gitlocker.is_locked_by_me():
-            print "    Du hast noch den exklusiven Zugriff, es gibt aber"
-            print "    keine lokalen Änderungen."
-            print ""
-            print "    Du hast folgende Optionen:"
-            print ""
-            print "    (u) Unlock"
-            print "          Exklusiven Zugriff freigeben"
-            print "    (s) Starten"
-            print "          jVerein starten, um Änderungen vorzunehmen"
-            print "    (q) Abbruch"
+            print("    Du hast noch den exklusiven Zugriff, es gibt aber")
+            print("    keine lokalen Änderungen.")
+            print("")
+            print("    Du hast folgende Optionen:")
+            print("")
+            print("    (u) Unlock")
+            print("          Exklusiven Zugriff freigeben")
+            print("    (s) Starten")
+            print("          jVerein starten, um Änderungen vorzunehmen")
+            print("    (q) Abbruch")
 
             response = self._user_input(["u", "s", "q"])
             if response == "u":
@@ -154,21 +153,21 @@ class AttraktorManage(object):
                 return
 
     def _manage_locked_by_others_and_clean(self):
-        print "    Das Arbeitsverzeichnis ist derzeit gesperrt."
-        print "    Bitte versuche es später noch einmal."
-        print ""
-        print "    {}".format(self._gitlocker.get_lock_status())
-        print ""
+        print("    Das Arbeitsverzeichnis ist derzeit gesperrt.")
+        print("    Bitte versuche es später noch einmal.")
+        print("")
+        print(f"    {self._gitlocker.get_lock_status()}")
+        print("")
 
     def _manage_unlocked_and_clean(self):
-        print "    Arbeitsverzeichnis sauber, kein exklusiver Zugriff angefordert."
-        print ""
-        print "    Du hast folgende Optionen:"
-        print ""
-        print "    (l) Lock"
-        print "          Änderungen herunterladen, exklusiven Zugriff anfordern"
-        print "          und jVerein starten"
-        print "    (q) Abbruch"
+        print("    Arbeitsverzeichnis sauber, kein exklusiver Zugriff angefordert.")
+        print("")
+        print("    Du hast folgende Optionen:")
+        print("")
+        print("    (l) Lock")
+        print("          Änderungen herunterladen, exklusiven Zugriff anfordern")
+        print("          und jVerein starten")
+        print("    (q) Abbruch")
 
         response = self._user_input(["l", "q"])
         if response == "l":
@@ -178,24 +177,24 @@ class AttraktorManage(object):
         return
 
     def _manage_locked_by_me_and_not_clean(self):
-        print "    Du hast noch den exklusiven Zugriff und es gibt "
-        print "    lokale Änderungen, die hochgeladen werden wollen."
-        print ""
-        print "    Du hast folgende Optionen:"
-        print ""
-        print "   (p) Push"
-        print "         Änderungen hochladen und exklusiven Zugriff freigeben"
-        print "   (s) Starten"
-        print "          jVerein starten, um weitere Änderungen vorzunehmen"
-        print "   (verwerfen)"
-        print "         Lokale Änderungen verwerfen und exklusvien Zugriff freigeben"
-        print "   (q) Abbruch"
+        print("    Du hast noch den exklusiven Zugriff und es gibt ")
+        print("    lokale Änderungen, die hochgeladen werden wollen.")
+        print("")
+        print("    Du hast folgende Optionen:")
+        print("")
+        print("   (p) Push")
+        print("         Änderungen hochladen und exklusiven Zugriff freigeben")
+        print("   (s) Starten")
+        print("          jVerein starten, um weitere Änderungen vorzunehmen")
+        print("   (verwerfen)")
+        print("         Lokale Änderungen verwerfen und exklusvien Zugriff freigeben")
+        print("   (q) Abbruch")
 
         response = self._user_input(["p", "s", "verwerfen", "q"])
         if response == "p":
             self._upload_changes()
             self._unlock()
-            print "Erfolg: Änderungen hochgeladen, exklusiver Zugriff freigegeben"
+            print("Erfolg: Änderungen hochgeladen, exklusiver Zugriff freigegeben")
         elif response == "s":
             self._run_jverein()
         elif response == "verwerfen":
@@ -204,18 +203,18 @@ class AttraktorManage(object):
         return
 
     def _manage_locked_by_others_and_not_clean(self):
-        print "ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG!"
-        print ""
-        print "    Es gibt Änderungen in dem Arbeitsverzeichnis, obwohl"
-        print "    jemand anderes den exklusiven Zugriff hat!"
-        print "    Wie auch immer dieser Zustand zustandegekommen ist,"
-        print "    versuche bitte, ihn in Zukunft zu vermeiden!"
-        print ""
-        print "    Du hast folgende Optionen:"
-        print ""
-        print "    (verwerfen)"
-        print "          Änderungen verwerfen."
-        print "    (q) Abbruch"
+        print("ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG!")
+        print("")
+        print("    Es gibt Änderungen in dem Arbeitsverzeichnis, obwohl")
+        print("    jemand anderes den exklusiven Zugriff hat!")
+        print("    Wie auch immer dieser Zustand zustandegekommen ist,")
+        print("    versuche bitte, ihn in Zukunft zu vermeiden!")
+        print("")
+        print("    Du hast folgende Optionen:")
+        print("")
+        print("    (verwerfen)")
+        print("          Änderungen verwerfen.")
+        print("    (q) Abbruch")
 
         response = self._user_input(["verwerfen", "q"])
         if response == "verwerfen":
@@ -223,22 +222,22 @@ class AttraktorManage(object):
         return
 
     def _manage_unlocked_and_not_clean(self):
-        print "ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG!"
-        print ""
-        print "    Es gibt Änderungen in dem Arbeitsverzeichnis, obwohl Du"
-        print "    nicht den exklusiven Zugriff auf das Verzeichnis hast!"
-        print "    Wie auch immer dieser Zustand zustandegekommen ist,"
-        print "    versuche bitte, ihn in Zukunft zu vermeiden!"
-        print ""
-        print "    Du hast folgende Optionen:"
-        print ""
-        print "    (p) Push"
-        print "          Versuchen, die Änderungen hochzuladen."
-        print "          Das kann funktionieren, muss es aber nicht."
-        print "          Ggf. musst du danach das Git von Hand zurücksetzen."
-        print "    (verwerfen)"
-        print "          Änderungen verwerfen."
-        print "    (q) Abbruch"
+        print("ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG! ACHTUNG!")
+        print("")
+        print("    Es gibt Änderungen in dem Arbeitsverzeichnis, obwohl Du")
+        print("    nicht den exklusiven Zugriff auf das Verzeichnis hast!")
+        print("    Wie auch immer dieser Zustand zustandegekommen ist,")
+        print("    versuche bitte, ihn in Zukunft zu vermeiden!")
+        print("")
+        print("    Du hast folgende Optionen:")
+        print("")
+        print("    (p) Push")
+        print("          Versuchen, die Änderungen hochzuladen.")
+        print("          Das kann funktionieren, muss es aber nicht.")
+        print("          Ggf. musst du danach das Git von Hand zurücksetzen.")
+        print("    (verwerfen)")
+        print("          Änderungen verwerfen.")
+        print("    (q) Abbruch")
 
         response = self._user_input(["p", "verwerfen", "q"])
         if response == "p":
@@ -246,6 +245,7 @@ class AttraktorManage(object):
         elif response == "verwerfen":
             self._discard_changes()
         return
+
 
 if __name__ == '__main__':
     logging.basicConfig(filename=os.path.join(os.path.dirname(__file__),
@@ -260,4 +260,4 @@ if __name__ == '__main__':
     except:
         traceback.print_exc(file=sys.stdout)
 
-    raw_input("Ende. Mit Enter bestätigen.")
+    input("Ende. Mit Enter bestätigen.")
