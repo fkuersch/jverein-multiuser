@@ -1,7 +1,10 @@
-import subprocess
-import os.path
+import os
+import errno
+import shutil
 import logging
+import subprocess
 from datetime import datetime
+from typing import Optional, Tuple, List
 
 
 class IsLockedError(Exception):
@@ -13,103 +16,141 @@ class GitError(Exception):
 
 
 class GitLocker:
+    """
+    This class implements an alternating multi-user access to a Git repository.
 
-    def __init__(self, git_path, working_dir, remote_host, remote_dir, name, email):
+    One GitLocker instance locks the repository by creating a tag on the remote repository,
+    other GitLocker instances will recognize the tag and raise a GitError when trying to lock the repo.
+
+    There are possible race conditions when two GitLocker instances create a lock tag at the same time,
+    but that's acceptable for our purpose.
+    """
+
+    def __init__(self,
+                 git_cmd: str,
+                 local_repo: str,
+                 remote_repo: str,
+                 author_name: str,
+                 author_email: str,
+                 instance_name: str):
+        """
+        Args:
+            git_cmd: Path to git executable, ie. '/usr/bin/git'
+            local_repo: Path to the local repository, ie. '~/lockable_project'
+            remote_repo: Remote repository, ie. 'example.org:~/lockable_project.git'
+            author_name: The name that will be used for the commits, ie. 'John Doe'
+            author_email: The email that will be used for the commits, ie. 'john@example.org'
+            instance_name: The name of this GitLocker instance (ie. computer name), ie. 'Johns MacBook'
+                For using multiple locks with the same author's name.
+        Raises:
+            NotADirectoryError
+            ValueError
+        """
         self._logger = logging.getLogger(__name__)
 
-        self._git_path = git_path
-        self._working_dir = working_dir
-        self._remote_host = remote_host
-        self._remote_dir = remote_dir
-        self._name = name
-        self._email = email
-        self._is_set_up = False
+        self._git_cmd = git_cmd
+        self._local_repo = os.path.expanduser(local_repo)
+        self._remote_repo = remote_repo
+        self._author_name = author_name
+        self._author_email = author_email
+        self._instance_name = self._sanitize(instance_name)
 
-        self._sanitized_name = self._sanitize_name()
+        if not os.path.isdir(self._local_repo):
+            raise NotADirectoryError(errno.ENOENT, os.strerror(errno.ENOENT), self._local_repo)
 
-    def _sanitize_name(self):
+        sanitized_author = self._sanitize(self._author_name)
+        sanitized_instance = self._instance_name
+        if not sanitized_author or not sanitized_instance:
+            raise ValueError("invalid author or instance name")
+
+        self._lock_name_prefix = f"lock_{sanitized_author}_{sanitized_instance}"
+
+    @staticmethod
+    def _sanitize(src_str: str) -> str:
         allowed_chars = "abcdefghijklmnopqrstuvwxyz-"
         allowed_chars += allowed_chars.upper()
 
-        sanitized_name = self._name.strip().replace(" ", "-")
-        sanitized_name = sanitized_name.replace("ß", "ss")
-        sanitized_name = sanitized_name.replace("ä", "ae")
-        sanitized_name = sanitized_name.replace("ö", "oe")
-        sanitized_name = sanitized_name.replace("ü", "ue")
+        replacements = [
+            (" ", "-"),
+            ("ß", "ss"),
+            ("ä", "ae"),
+            ("ö", "oe"),
+            ("ü", "ue"),
+        ]
 
-        sanitized_name = "".join([c for c in sanitized_name if c in allowed_chars])
-        return sanitized_name
+        sanitized_str = src_str.strip()
+        for orig, repl in replacements:
+            sanitized_str = sanitized_str.replace(orig, repl)
 
-    def _create_lock_name(self):
-        sanitized_datetime = datetime.now().isoformat("_").split(".")[0].replace(":", "-")
-        return "lock_" + self._sanitized_name + "_" + sanitized_datetime
+        sanitized_str = "".join([c for c in sanitized_str if c in allowed_chars])
 
-    def _execute_git(self, args, check_setup=True):
+        return sanitized_str
 
-        # make sure the name and email are set
-        if check_setup and not self._is_set_up:
-            self._setup()
-
+    def _execute_git(self, args: List[str]) -> Tuple[int, str, str]:
         git_env = os.environ.copy()
+        # we need the output in english to be able to parse it properly
         git_env["LANGUAGE"] = "en_US.UTF-8"
 
-        args = [self._git_path,
-                "-C", self._working_dir,
+        args = [self._git_cmd,
+                "-C", self._local_repo,
                 ] + args
         self._logger.info(f"executing: '{' '.join(args)}'")
-        gitproc = subprocess.Popen(args,
-                                   shell=False, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   env=git_env)
-        output, err = gitproc.communicate()
+        proc = subprocess.run(args, capture_output=True, env=git_env)
+        stdout_str = proc.stdout.decode()
+        stderr_str = proc.stderr.decode()
 
-        if gitproc.returncode != 0:
-            self._logger.error(f"RETURNCODE: {gitproc.returncode}")
-            self._logger.error(f"STDOUT: {output}")
-            self._logger.error(f"STDERR: {err}")
+        if proc.returncode != 0:
+            self._logger.error(f"RETURNCODE: {proc.returncode}")
+            self._logger.error(f"STDOUT: {stdout_str}")
+            self._logger.error(f"STDERR: {stderr_str}")
 
-        return gitproc.returncode, output.decode(), err.decode()
+        return proc.returncode, stdout_str, stderr_str
 
-    def _setup(self):
-        """
-        Set the Git username and email
-        :raises GitError
-        """
-
-        self._ensure_git_available()
-
+    def _git_set_author(self):
         ret = self._execute_git(
-            ["config", "--local", "user.name", self._name],
-            check_setup=False)[0]
+            ["config", "--local", "user.name", self._author_name])[0]
         if ret != 0:
             raise GitError("Konnte den Git-Usernamen nicht setzen!")
 
         ret = self._execute_git(
-            ["config", "--local", "user.email", self._email],
-            check_setup=False)[0]
+            ["config", "--local", "user.email", self._author_email])[0]
         if ret != 0:
             raise GitError("Konnte die Git-E-Mail-Adresse nicht setzen!")
 
-        self._is_set_up = True
+    def stage_and_commit(self, commit_message: str):
+        self._git_set_author()
+        subprocess.run([self._git_cmd, "-C", self._local_repo, "status"], check=True)
 
-    def get_lock_status(self):
+        ret = self._execute_git(["add", "--all"])[0]
+        if ret != 0:
+            raise GitError("Konnte die Änderungen nicht stagen.")
+
+        ret = self._execute_git(["commit", "-m", commit_message])[0]
+        if ret != 0:
+            raise GitError("Konnte die Änderungen nicht commiten.")
+
+    def is_local_repo_available(self) -> bool:
+        return os.path.exists(os.path.join(self._local_repo, ".git"))
+
+    def get_lock_info(self) -> Optional[str]:
         ret, output = self._execute_git(["tag", "-l", "lock*"])[:2]
         if ret != 0:
             raise GitError("Konnte nicht Tag prüfen. Bitte Log prüfen.")
 
         num_locks = output.count("\n")
         if num_locks > 1:
-            raise GitError(
-                "Achtung! Mehr als ein Lock! Das darf nicht passieren!")
+            raise GitError("Achtung! Mehr als ein Lock! Das darf nicht passieren!")
         elif num_locks == 1:
-            lock_status = output.strip().split("_")[1:]  # delete lock_
-            lock_status[0] = lock_status[0].replace("-", " ")  # name
-            lock_status[2] = lock_status[2].replace("-", ":")  # time
-            return " ".join(lock_status)
+            lock_name_parts = output.strip().split("_")[1:]  # delete lock_
+            lock_author = lock_name_parts[0].replace("-", " ")
+            lock_instance = lock_name_parts[1].replace("-", " ")
+            lock_date = lock_name_parts[2]
+            lock_time = lock_name_parts[3].replace("-", ":")
+            return f"{lock_author} ({lock_instance}) {lock_date} {lock_time}"
 
         return None
 
-    def is_locked_by_me(self):
+    def is_locked_by_me(self) -> bool:
         ret, output = self._execute_git(["tag", "-l", "lock*"])[:2]
         if ret != 0:
             raise GitError("Konnte nicht Tag prüfen. Bitte Log prüfen.")
@@ -119,13 +160,13 @@ class GitLocker:
             raise GitError(
                 "Achtung! Mehr als ein Lock! Das darf nicht passieren!")
         elif num_locks == 1:
-            return output.strip().startswith("lock_" + self._sanitized_name)
+            return output.strip().startswith(self._lock_name_prefix)
 
         return False
 
-    def is_clean(self):
-
-        self._ensure_git_available()
+    def is_synced_with_remote_repo(self) -> bool:
+        if not self.is_local_repo_available():
+            return False
 
         ret, out, err = self._execute_git(["status"])
         if ret != 0:
@@ -137,13 +178,15 @@ class GitLocker:
                 self._logger.debug(line)
                 if "branch is ahead of" in line:
                     return False
+                if "upstream is gone" in line:
+                    return False
                 if "nothing to commit" in line:
                     return True
         return False
 
-    def need_to_commit(self):
-
-        self._ensure_git_available()
+    def need_to_commit(self) -> bool:
+        if not self.is_local_repo_available():
+            return False
 
         ret, out, err = self._execute_git(["status"])
         if ret != 0:
@@ -157,27 +200,28 @@ class GitLocker:
                     return False
         return True
 
-    def _ensure_git_available(self):
-        # clone or pull from remote
-        if not os.path.exists(os.path.join(self._working_dir, ".git")):
-            ret = self._execute_git(
-                ["clone",
-                 ":".join([self._remote_host, self._remote_dir]),
-                 "."],
-                check_setup=False)[0]
-            if ret != 0:
-                raise GitError("Konnte nicht clonen. Bitte Log prüfen.")
+    def do_initial_setup(self, initial_commit_file: str):
+        """
+        Args:
+            initial_commit_file: Path to file which will be committed if we cloned an empty repo
+        """
+        ret, output, error = self._execute_git(["clone", self._remote_repo, "."])
+        if ret != 0:
+            raise GitError("Konnte nicht clonen. Bitte Log prüfen.")
+
+        if "cloned an empty repository" in error:
+            self._logger.warning("Cloned an empty repository. Creating an initial commit.")
+            dst_path = os.path.join(self._local_repo, os.path.basename(initial_commit_file))
+            shutil.copyfile(initial_commit_file, dst_path)
+            self.stage_and_commit("initial commit")
 
     def pull(self):
-        self._ensure_git_available()
-
         ret = self._execute_git(["pull"])[0]
         if ret != 0:
             raise GitError("Konnte nicht updaten. Bitte Log prüfen.")
 
         ret, out, err = self._execute_git(
-            ["pull",
-             "--prune", "origin", "+refs/tags/*:refs/tags/*"])
+            ["pull", "--prune", "origin", "+refs/tags/*:refs/tags/*"])
         if ret == 1 and "no candidates for merging among the refs" in err:
             ret = 0
 
@@ -188,18 +232,17 @@ class GitLocker:
         self.pull()
 
         # check lock after updating
-        lock_status = self.get_lock_status()
+        lock_name = self.get_lock_info()
         is_locked_by_me = self.is_locked_by_me()
-        if lock_status is not None and not is_locked_by_me:
-            raise IsLockedError(
-                f"Ist bereits gelockt: von {lock_status}")
+        if lock_name is not None and not is_locked_by_me:
+            raise IsLockedError(f"Ist bereits gelockt von: {lock_name}")
 
-        if lock_status is not None and is_locked_by_me:
-            raise IsLockedError(
-                f"Ist bereits von Dir gelockt: {lock_status}")
+        if lock_name is not None and is_locked_by_me:
+            raise IsLockedError(f"Ist bereits von Dir gelockt: {lock_name}")
 
-        # no Lock acquired, create and push tag
-        lock_name = self._create_lock_name()
+        # no lock acquired, create and push tag
+        sanitized_datetime = datetime.now().isoformat("_").split(".")[0].replace(":", "-")
+        lock_name = self._lock_name_prefix + "_" + sanitized_datetime
         ret = self._execute_git(["tag", lock_name])[0]
         if ret != 0:
             raise GitError("Konnte kein Tag anlegen! Bitte Log prüfen")
@@ -208,23 +251,14 @@ class GitLocker:
         if ret != 0:
             raise GitError("Konnte Tag nicht pushen! Bitte Log prüfen")
 
-    def _commit(self, commit_message):
-        ret = self._execute_git(["add", "--all"])[0]
-        if ret != 0:
-            raise GitError("Konnte die Änderungen nicht stagen.")
-
-        ret = self._execute_git(["commit", "-m", commit_message])[0]
-        if ret != 0:
-            raise GitError("Konnte die Änderungen nicht commiten.")
-
-    def push(self, commit_message=None):
-        if commit_message is not None:
-            self._commit(commit_message)
+    def push(self):
+        if self.is_synced_with_remote_repo():
+            raise GitError("Keine Änderungen")
 
         if self.need_to_commit():
             raise GitError("Working directory ist nicht clean!")
 
-        ret = self._execute_git(["push", "origin", "master"])[0]
+        ret = self._execute_git(["push", "-u"])[0]  # set upstream. important for initial commit in an empty repo
         if ret != 0:
             raise GitError("Konnte nicht pushen!")
 
@@ -236,12 +270,10 @@ class GitLocker:
         num_locks = output.count("\n")
         if num_locks > 1:
             self._logger.error("> 1 lock acquired")
-            raise GitError(
-                "Achtung! Mehr als ein Lock! Das darf nicht passieren!")
+            raise GitError("Achtung! Mehr als ein Lock! Das darf nicht passieren!")
         elif num_locks == 0:
             self._logger.error("0 locks acquired")
-            raise GitError(
-                "Achtung! Kein Lock! Das darf nicht passieren!")
+            raise GitError("Achtung! Kein Lock! Das darf nicht passieren!")
 
         lock_name = output.split("\n")[0].strip()
 
@@ -256,7 +288,7 @@ class GitLocker:
             raise GitError("Konnte lokalen Tag nicht löschen! Bitte Log prüfen")
 
     def delete_local_changes(self):
-        ret = self._execute_git(["reset", "--hard", "origin/master"])[0]
+        ret = self._execute_git(["reset", "--hard", "@{upstream}"])[0]
         if ret != 0:
             raise GitError("Konnte nicht Git auf den letzten Commit resetten.")
 
