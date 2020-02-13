@@ -8,11 +8,10 @@ from tempfile import NamedTemporaryFile
 
 class JvereinManager:
 
-    def __init__(self, working_dir, jameica_properties_file):
+    def __init__(self, working_dir):
         self._logger = logging.getLogger(__name__)
 
         self._working_dir = working_dir
-        self._jameica_properties_file = jameica_properties_file
 
     def setup_jverein_paths(self):
         # config.user.working_dir
@@ -34,27 +33,6 @@ class JvereinManager:
 
         with open(file_path, "w") as f:
             f.write(content)
-
-        # backup original ~/.jameica.properties file
-        if os.path.exists(self._jameica_properties_file):
-            # delete existing backup if there is one
-            if os.path.exists(self._jameica_properties_file + ".bak"):
-                os.unlink(self._jameica_properties_file + ".bak")
-            # move
-            os.rename(self._jameica_properties_file,
-                      self._jameica_properties_file + ".bak")
-
-        # create new .jameica.properties file
-        # this allows us to start jameica without asking for the working directory
-        with open(self._jameica_properties_file, "w") as f:
-            jameica_path = os.path.join(self._working_dir, "jameica")
-            if "\\" in os.path.join("a", "b"):
-                # windows-Pfade sind escaped
-                jameica_path = jameica_path.replace("\\", "\\\\")
-                # der Doppelpunkt in dieser Datei auch
-                jameica_path = jameica_path.replace(":", "\\:")
-            f.write(f"dir={jameica_path}\n")
-            f.write("ask=false")
 
     def teardown_jverein_paths(self):
         # Arbeitsverzeichnis durch Platzhalter "JAMEICA_DIR" ersetzen
@@ -93,15 +71,6 @@ class JvereinManager:
 
             with open(file_path, "w") as f:
                 f.write(newcontent)
-
-        # remove our .jameica.properties file
-        if os.path.exists(self._jameica_properties_file):
-            os.unlink(self._jameica_properties_file)
-
-        # restore backup of original file (if it exists)
-        if os.path.exists(self._jameica_properties_file + ".bak"):
-            os.rename(self._jameica_properties_file + ".bak",
-                      self._jameica_properties_file)
 
     def dump_database(self, java_path, h2_jar_name):
         # mysqldump für h2
@@ -156,14 +125,14 @@ class JvereinManager:
         finally:
             os.unlink(temp_path)
 
-    def run_jverein(self, jameica_path, jameica_cwd):
+    def run_jverein(self, jameica_path):
         """
         blocking
         """
-        FNULL = open(os.devnull, "w")
-        p = subprocess.Popen(jameica_path,
-                             cwd=jameica_cwd,
-                             shell=True,
-                             stdin=None, stdout=FNULL, stderr=FNULL)
-        p.wait()
+        subprocess.run(
+            [jameica_path, "-f", self._working_dir],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=".")  # TODO: need to verify: cd to jameica executable directory. may be important for windows
+
         sleep(2)
