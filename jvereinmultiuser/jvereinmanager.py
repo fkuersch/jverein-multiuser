@@ -1,10 +1,26 @@
 import os
+import jks
+import time
+import base64
 import logging
 import textwrap
 import subprocess
 from time import sleep
 from typing import Dict
+from Crypto.PublicKey import RSA
 from tempfile import NamedTemporaryFile
+
+# Attention!
+# Jameica uses raw RSA encryption without padding (textbook RSA).
+# pyca/cryptography doesn't support that:
+# https://github.com/pyca/cryptography/issues/3604
+# PyCyptodome also doesn't seem to support that (removed 'decrypt()'):
+# https://pycryptodome.readthedocs.io/en/latest/src/vs_pycrypto.html
+# -> so we need to use legacy PyCrypto
+
+# monkey-patch for PyCrypto & Python 3.8,
+# see https://github.com/dlitz/pycrypto/issues/283
+time.clock = time.process_time
 
 
 _USER_PROPERTIES_TEMPLATE = {
@@ -94,6 +110,7 @@ class JVereinManager:
 
         self._jameica_dir = os.path.join(self._local_repo_dir, "jameica")
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
+        self._keystore_path = os.path.join(self._jameica_dir, "cfg", "jameica.keystore")
 
         self._databases = [
             os.path.join(self._jameica_dir, "jverein", "h2db", "jverein"),
@@ -160,6 +177,32 @@ class JVereinManager:
                 continue
 
         self._user_properties = new_user_properties
+
+    def _decrypt_passphrase(self, encrypted_base64_passphrase: str, keystore_password: str) -> str:
+        encrypted_bytes = base64.b64decode(encrypted_base64_passphrase.encode('ascii'))
+
+        keystore = jks.KeyStore.load(self._keystore_path, keystore_password)
+        try:
+            pk_entry = keystore.private_keys["jameica"]
+        except KeyError:
+            raise KeyError(f"the keystore at '{self._keystore_path}' doesn't contain a private key named 'jameica'")
+
+        private_key = "\n".join(
+            [f"-----BEGIN RSA PRIVATE KEY-----"]
+            + textwrap.wrap(base64.b64encode(pk_entry.pkey).decode('ascii'), 64)
+            + [f"-----END RSA PRIVATE KEY-----"]
+        ).encode()
+
+        private_key_object = RSA.importKey(private_key)
+        decrypted_bytes = private_key_object.decrypt(encrypted_bytes)
+
+        # The passphrase for the hibiscus database (for both user and encryption)
+        # is the base64 representation of the decrypted bytes, see:
+        # https://github.com/willuhn/hibiscus/blob/a85117bc381f2f16937a95ceb72d9df9ca9261b2/src/de/willuhn/jameica/hbci/server/DBSupportH2Impl.java#L88
+        # https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
+        passphrase = base64.b64encode(decrypted_bytes).decode()
+
+        return f"{passphrase} {passphrase}"
 
     def _dump_and_delete_h2_database(self, db_path: str):
         """

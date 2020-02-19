@@ -4,7 +4,7 @@ import logging
 import textwrap
 import subprocess
 from unittest import TestCase
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import TemporaryDirectory
 
 from jvereinmultiuser.jvereinmanager import JVereinManager
 
@@ -229,3 +229,30 @@ class TestJVereinManager(TestCase):
 
             with open(os.path.join(repo_dir, "dump", "mitglieder-emails.csv")) as f:
                 self.assertEqual(expected_emails, f.read().strip())
+
+    def test__decrypt_passphrase_successful(self):
+        encrypted_passphrase = "WmpFkXzBjV6B6ySu9cAH05GusKbdmoZdt+FvVnqP5RpwbP5pQD8nOZKujV7lTqtfrIwz08ASmAtk\r\nTCgJqvJsOE76W4lbUGSLgJWYbSK5W1svu93Ne1exRI6BHG8HvUXiocNpog7Uajuf+3hjn2kYYQLO\r\nnPZo29e8CP17ovqodcw3aKA5PaN4HH+jHR7WfUP/tgZrEBf0zgc9l0vkmLzA3bVVyu88SaY385jl\r\n4ASYWzxPY3xR2y81/MvPIEKio4YmWEUVur5fKYXupVg1ANp1GFK/bfS2hpK1jcm6zmKwR58kQfy1\r\nyMUCsIlhc7k48SFZoi1BQ+Aiza52qRdWtfzRzA\=\="
+        master_password = "password"
+        expected_decrypted_passphrase = "Kh3BdGN9haQVFS2eJLne4aBINbQ= Kh3BdGN9haQVFS2eJLne4aBINbQ="
+
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+
+            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            decrypted_passphrase = j._decrypt_passphrase(encrypted_passphrase, master_password)
+            self.assertEqual(expected_decrypted_passphrase, decrypted_passphrase)
+
+    def test__decrypt_passphrase_missing_file(self):
+        encrypted_passphrase = "WmpFkXzBjV6B6ySu9cAH05GusKbdmoZdt+FvVnqP5RpwbP5pQD8nOZKujV7lTqtfrIwz08ASmAtk\r\nTCgJqvJsOE76W4lbUGSLgJWYbSK5W1svu93Ne1exRI6BHG8HvUXiocNpog7Uajuf+3hjn2kYYQLO\r\nnPZo29e8CP17ovqodcw3aKA5PaN4HH+jHR7WfUP/tgZrEBf0zgc9l0vkmLzA3bVVyu88SaY385jl\r\n4ASYWzxPY3xR2y81/MvPIEKio4YmWEUVur5fKYXupVg1ANp1GFK/bfS2hpK1jcm6zmKwR58kQfy1\r\nyMUCsIlhc7k48SFZoi1BQ+Aiza52qRdWtfzRzA\=\="
+        master_password = "password"
+
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+            os.unlink(os.path.join(repo_dir, "jameica", "cfg", "jameica.keystore"))
+
+            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            self.assertRaises(FileNotFoundError, j._decrypt_passphrase, encrypted_passphrase, master_password)
