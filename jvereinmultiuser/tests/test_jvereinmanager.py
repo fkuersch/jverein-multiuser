@@ -83,7 +83,7 @@ class TestJVereinManager(TestCase):
                             datefmt="%Y-%m-%d %H:%M:%S",
                             level=logging.DEBUG)
 
-    def _set_up_example_database(self, jdbc_path):
+    def _set_up_jverein_database(self, jdbc_path):
         try:
             os.makedirs(os.path.dirname(jdbc_path))
         except FileExistsError:
@@ -217,7 +217,7 @@ class TestJVereinManager(TestCase):
             shutil.copytree(src_dir, repo_dir)
 
             jdbc_path = os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein")
-            self._set_up_example_database(jdbc_path)
+            self._set_up_jverein_database(jdbc_path)
 
             j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
             j._export_emails()
@@ -256,3 +256,48 @@ class TestJVereinManager(TestCase):
 
             j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
             self.assertRaises(FileNotFoundError, j._decrypt_passphrase, encrypted_passphrase, master_password)
+
+    def test__register_all_databases(self):
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+
+            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j._register_all_databases("password")
+
+            expected_databases = [
+                (os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein"),
+                 "jverein",
+                 "jverein"),
+                (os.path.join(repo_dir, "jameica", "hibiscus", "h2db", "hibiscus"),
+                 "hibiscus",
+                 "Kh3BdGN9haQVFS2eJLne4aBINbQ= Kh3BdGN9haQVFS2eJLne4aBINbQ="),
+                (os.path.join(repo_dir, "jameica", "hibiscus.mashup", "h2db", "mashup"),
+                 "mashup",
+                 "WIESrepL3wE= WIESrepL3wE=")
+            ]
+
+            self.assertEqual(expected_databases, j._databases)
+
+    def test__register_all_databases_missing_passphrase(self):
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+            os.unlink(os.path.join(
+                repo_dir, "jameica", "cfg", "de.willuhn.jameica.hbci.rmi.HBCIDBService.properties"))
+
+            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j._register_all_databases("password")
+
+            expected_databases = [
+                (os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein"),
+                 "jverein",
+                 "jverein"),
+                (os.path.join(repo_dir, "jameica", "hibiscus.mashup", "h2db", "mashup"),
+                 "mashup",
+                 "WIESrepL3wE= WIESrepL3wE=")
+            ]
+
+            self.assertEqual(expected_databases, j._databases)

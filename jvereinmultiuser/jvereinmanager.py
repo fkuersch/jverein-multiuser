@@ -112,11 +112,7 @@ class JVereinManager:
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
         self._keystore_path = os.path.join(self._jameica_dir, "cfg", "jameica.keystore")
 
-        self._databases = [
-            os.path.join(self._jameica_dir, "jverein", "h2db", "jverein"),
-            os.path.join(self._jameica_dir, "hibiscus", "h2db", "hibiscus"),
-            os.path.join(self._jameica_dir, "hibiscus.mashup", "h2db", "mashup"),
-        ]
+        self._databases = []
 
     @property
     def user_properties(self):
@@ -204,15 +200,88 @@ class JVereinManager:
 
         return f"{passphrase} {passphrase}"
 
-    def _dump_and_delete_h2_database(self, db_path: str):
+    def _load_properties_file(self, filepath, sep='=', comment_char='#'):
+        """
+        Read the file passed as parameter as a properties file.
+
+        based on https://stackoverflow.com/a/31852401
+        """
+        props = {}
+        try:
+            with open(filepath, "rt") as f:
+                for line in f:
+                    l = line.strip()
+                    if l and not l.startswith(comment_char):
+                        key_value = l.split(sep)
+                        key = key_value[0].strip()
+                        value = sep.join(key_value[1:]).strip().strip('"')
+                        value = value.replace(r"\r", "\r")
+                        value = value.replace(r"\n", "\n")
+                        props[key] = value
+        except FileNotFoundError:
+            self._logger.warning(f"unable to read properties file (file not found): '{filepath}'")
+        return props
+
+    def _register_database(self, db_path: str, username: str, passphrase: str):
+        self._databases.append((db_path, username, passphrase))
+
+    def _register_encrypted_database(self,
+                                     db_path: str,
+                                     username: str,
+                                     properties_file_path: str,
+                                     property_name: str,
+                                     master_password: str):
+
+        properties = self._load_properties_file(properties_file_path)
+        try:
+            encrypted_passphrase = properties[property_name]
+        except KeyError:
+            self._logger.warning(f"unable to register database '{db_path}': No such property named '{property_name} in '{properties_file_path}'")
+            return
+        passphrase = self._decrypt_passphrase(encrypted_passphrase, master_password)
+        self._databases.append((db_path, username, passphrase))
+
+    def _register_all_databases(self, master_password: str):
+        self._register_database(
+            db_path=os.path.join(self._jameica_dir, "jverein", "h2db", "jverein"),
+            username="jverein",
+            passphrase="jverein"
+        )
+        self._register_encrypted_database(
+            db_path=os.path.join(self._jameica_dir, "hibiscus", "h2db", "hibiscus"),
+            username="hibiscus",
+            properties_file_path=os.path.join(
+                self._jameica_dir, "cfg", "de.willuhn.jameica.hbci.rmi.HBCIDBService.properties"),
+            property_name="database.driver.h2.encryption.encryptedpassword",
+            master_password=master_password
+        )
+        self._register_encrypted_database(
+            db_path=os.path.join(self._jameica_dir, "hibiscus.mashup", "h2db", "mashup"),
+            username="mashup",
+            properties_file_path=os.path.join(
+                self._jameica_dir, "cfg", "de.derrichter.hibiscus.mashup.rmi.MashupDBService.properties"),
+            property_name="database.driver.h2.encryption.encryptedpassword",
+            master_password=master_password
+        )
+
+    def _dump_and_delete_h2_database(self, db_path: str, username: str, passphrase: str):
         """
         Args:
             db_path: absolute database path without extension
         """
 
-        full_db_path = f"{db_path}.mv.db"
-        if not os.path.exists(full_db_path):
-            self._logger.warning(f"unable to dump database (file not found): {full_db_path}")
+        possible_paths = [
+            f"{db_path}.mv.db",
+            f"{db_path}.h2.db"
+        ]
+        full_db_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                full_db_path = path
+                self._logger.debug(f"found database file at '{full_db_path}'")
+                break
+        if full_db_path is None:
+            self._logger.warning(f"unable to dump database (file not found): {possible_paths}")
             return
 
         # http://h2database.com/html/tutorial.html#upgrade_backup_restore
@@ -222,8 +291,8 @@ class JVereinManager:
                                "-cp", self._h2_jar_path,
                                "org.h2.tools.Script",
                                "-url", f"jdbc:h2:{db_path}",
-                               "-user", "jverein",
-                               "-password", "jverein",
+                               "-user", username,
+                               "-password", passphrase,
                                "-script", sql_file_path])
 
         if proc.returncode != 0:
@@ -232,10 +301,10 @@ class JVereinManager:
         os.unlink(full_db_path)
 
     def _dump_and_delete_all_databases(self):
-        for db in self._databases:
-            self._dump_and_delete_h2_database(db)
+        for db, username, passphrase in self._databases:
+            self._dump_and_delete_h2_database(db, username, passphrase)
 
-    def _restore_h2_database(self, db_path: str):
+    def _restore_h2_database(self, db_path: str, username: str, passphrase: str):
         """
         Args:
             db_path: absolute database path without extension
@@ -252,8 +321,8 @@ class JVereinManager:
                                "-cp", self._h2_jar_path,
                                "org.h2.tools.RunScript",
                                "-url", f"jdbc:h2:{db_path}",
-                               "-user", "jverein",
-                               "-password", "jverein",
+                               "-user", username,
+                               "-password", passphrase,
                                "-script", full_sql_path])
 
         if proc.returncode != 0:
@@ -262,8 +331,8 @@ class JVereinManager:
         os.unlink(full_sql_path)
 
     def _restore_all_databases(self):
-        for db in self._databases:
-            self._restore_h2_database(db)
+        for db, username, passphrase in self._databases:
+            self._restore_h2_database(db, username, passphrase)
 
     def _export_emails(self):
         """
@@ -288,6 +357,7 @@ class JVereinManager:
                 """
 
                 # http://www.h2database.com/html/functions.html#csvwrite
+                # http://www.h2database.com/html/grammar.html#csv_options
                 temp_file.write(textwrap.dedent(r"""
                     CALL CSVWRITE(
                         'mitglieder-emails.csv', 
