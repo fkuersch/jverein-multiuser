@@ -12,8 +12,8 @@ JAVA_PATH = "/Applications/jameica2.8.6.app/jre-macos64/Contents/Home/bin/java"
 H2_PATH = "/Applications/jameica2.8.6.app/lib/h2/h2-1.4.199.jar"
 
 EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\
+    ;
     CREATE USER IF NOT EXISTS "JVEREIN" SALT 'b639d0d2ad3657a9' HASH '12091ed2f3d5c62f8b4297da36ca4fad7db9ff51a6844da8b95bddd0fb4e2ad5' ADMIN;
-    
     CREATE CACHED TABLE "PUBLIC"."MITGLIED"(
         "ID" BIGINT NOT NULL,
         "EXTERNEMITGLIEDSNUMMER" VARCHAR(50),
@@ -65,12 +65,12 @@ EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\
         "LETZTEAENDERUNG" DATE,
         "KTOIGESCHLECHT" VARCHAR(1),
         "ZAHLUNGSTERMIN" INTEGER
-    );
-    ALTER TABLE "PUBLIC"."MITGLIED" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_E" PRIMARY KEY("ID");
-    
+    );         
+    ALTER TABLE "PUBLIC"."MITGLIED" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_E" PRIMARY KEY("ID");      
+    -- 2 +/- SELECT COUNT(*) FROM PUBLIC.MITGLIED; 
     INSERT INTO "PUBLIC"."MITGLIED" VALUES
-    (1, NULL, 1, 'n', '', '', 'Mustermann', 'Max', '', STRINGDECODE('Musterdorfer Straße 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'm', '', '', '', 'mustermann@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL),
-    (2, NULL, 1, 'n', '', '', 'Musterfrau', 'Anna', '', STRINGDECODE('Musterdorfer Straße 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'w', '', '', '', 'musterfrau@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL);
+    (1, NULL, 1, 'n', '', '', 'Mustermann', 'Max', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'm', '', '', '', 'mustermann@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL),
+    (2, NULL, 1, 'n', '', '', 'Musterfrau', 'Anna', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'w', '', '', '', 'musterfrau@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL);
 """)
 
 
@@ -301,3 +301,34 @@ class TestJVereinManager(TestCase):
             ]
 
             self.assertEqual(expected_databases, j._databases)
+
+    def test__restore_and_dump_all_databases(self):
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+
+            db_dir = os.path.join(repo_dir, "jameica", "jverein", "h2db")
+            db_path = os.path.join(db_dir, "jverein.mv.db")
+            sql_path = os.path.join(db_dir, "jverein.sql")
+            os.makedirs(os.path.dirname(sql_path))
+            with open(sql_path, "w") as f:
+                f.write(EXAMPLE_JVEREIN_DATABASE)
+
+            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j._register_all_databases("password")
+            j._restore_all_databases()
+            self.assertTrue(os.path.exists(db_path))
+            self.assertFalse(os.path.exists(sql_path))
+
+            j._dump_and_delete_all_databases()
+            self.assertFalse(os.path.exists(db_path))
+            self.assertTrue(os.path.exists(sql_path))
+
+            with open(sql_path, "r") as f:
+                sql_content = f.read()
+
+            expected_compareable_content = "\n".join(EXAMPLE_JVEREIN_DATABASE.splitlines()[2:])
+            actual_comparable_content = "\n".join(sql_content.splitlines()[2:])
+
+            self.assertEqual(expected_compareable_content, actual_comparable_content)
