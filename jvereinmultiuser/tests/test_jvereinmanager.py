@@ -6,11 +6,14 @@ import subprocess
 from unittest import TestCase
 from tempfile import TemporaryDirectory
 
-from jvereinmultiuser.jvereinmanager import JVereinManager
+from jvereinmultiuser.jvereinmanager import JVereinManager, JameicaVersionDiffersError
+
 
 JAMEICA_PATH = "/Applications/jameica2.8.6.app/jameica-macos64.sh"
+PLUGIN_XML_PATH = "/Applications/jameica2.8.6.app/plugin.xml"
 JAVA_PATH = "/Applications/jameica2.8.6.app/jre-macos64/Contents/Home/bin/java"
 H2_PATH = "/Applications/jameica2.8.6.app/lib/h2/h2-1.4.199.jar"
+JAMEICA_VERSION = "2.8.6"
 
 EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\
     ;
@@ -139,7 +142,7 @@ class TestJVereinManager(TestCase):
                 window.y=109
             """).strip()
 
-            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._insert_user_properties_into_properties_files()
 
             gui_file = os.path.join(repo_dir, "jameica", "cfg", "de.willuhn.jameica.gui.GUI.properties")
@@ -200,7 +203,7 @@ class TestJVereinManager(TestCase):
                 window.y=
             """).strip()
 
-            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._reset_user_properties_in_properties_files()
 
             gui_file = os.path.join(repo_dir, "jameica", "cfg", "de.willuhn.jameica.gui.GUI.properties")
@@ -220,7 +223,7 @@ class TestJVereinManager(TestCase):
             jdbc_path = os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein")
             self._set_up_jverein_database(jdbc_path)
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._export_emails()
 
             expected_emails = textwrap.dedent("""\
@@ -241,7 +244,7 @@ class TestJVereinManager(TestCase):
             repo_dir = os.path.join(tmp_dir, "repo_dir")
             shutil.copytree(src_dir, repo_dir)
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             decrypted_passphrase = j._decrypt_passphrase(encrypted_passphrase, master_password)
             self.assertEqual(expected_decrypted_passphrase, decrypted_passphrase)
 
@@ -255,7 +258,7 @@ class TestJVereinManager(TestCase):
             shutil.copytree(src_dir, repo_dir)
             os.unlink(os.path.join(repo_dir, "jameica", "cfg", "jameica.keystore"))
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             self.assertRaises(FileNotFoundError, j._decrypt_passphrase, encrypted_passphrase, master_password)
 
     def test__register_all_databases(self):
@@ -264,7 +267,7 @@ class TestJVereinManager(TestCase):
             repo_dir = os.path.join(tmp_dir, "repo_dir")
             shutil.copytree(src_dir, repo_dir)
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
 
             expected_databases = [
@@ -289,7 +292,7 @@ class TestJVereinManager(TestCase):
             os.unlink(os.path.join(
                 repo_dir, "jameica", "cfg", "de.willuhn.jameica.hbci.rmi.HBCIDBService.properties"))
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
 
             expected_databases = [
@@ -316,7 +319,7 @@ class TestJVereinManager(TestCase):
             with open(sql_path, "w") as f:
                 f.write(EXAMPLE_JVEREIN_DATABASE)
 
-            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
             j._restore_all_databases()
             self.assertTrue(os.path.exists(db_path))
@@ -333,3 +336,47 @@ class TestJVereinManager(TestCase):
             actual_comparable_content = "\n".join(sql_content.splitlines()[2:])
 
             self.assertEqual(expected_compareable_content, actual_comparable_content)
+
+    def test__check_jameica_version(self):
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+
+            config_path = os.path.join(repo_dir, "config.ini")
+            self.assertFalse(os.path.exists(config_path))
+
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
+            j._check_jameica_version()
+
+            expected_content = textwrap.dedent(f"""\
+            [Jameica]
+            expectedversion = {JAMEICA_VERSION}
+            
+            """)
+
+            # first start should crate an ini file
+            self.assertTrue(os.path.exists(config_path))
+            with open(config_path, "r") as f:
+                content = f.read()
+                self.assertEqual(expected_content, content)
+
+            previous_version_config = textwrap.dedent(f"""\
+            [Jameica]
+            expectedversion = 2.6.1
+            
+            """)
+            with open(config_path, "w") as f:
+                f.write(previous_version_config)
+
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, PLUGIN_XML_PATH, JAVA_PATH, H2_PATH)
+            self.assertRaises(JameicaVersionDiffersError, j._check_jameica_version)
+
+            with open(config_path, "r") as f:
+                content = f.read()
+                self.assertEqual(previous_version_config, content)
+
+            j.update_expected_jameica_version()
+            with open(config_path, "r") as f:
+                content = f.read()
+                self.assertEqual(expected_content, content)

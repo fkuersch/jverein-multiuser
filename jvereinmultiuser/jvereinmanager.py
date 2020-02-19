@@ -5,10 +5,13 @@ import base64
 import logging
 import textwrap
 import subprocess
+import configparser
 from time import sleep
 from typing import Dict
 from Crypto.PublicKey import RSA
+import xml.etree.ElementTree as ET
 from tempfile import NamedTemporaryFile
+
 
 # Attention!
 # Jameica uses raw RSA encryption without padding (textbook RSA).
@@ -94,12 +97,17 @@ https://github.com/willuhn/jameica/commit/5fc223f9d0f240b4a8d5428a22ac98d529c593
 """
 
 
+class JameicaVersionDiffersError(Exception):
+    """ The current Jameica version is different than the expected one """
+
+
 class JVereinManager:
 
     def __init__(self,
                  local_repo_dir: str,
                  user_properties: Dict[str, Dict[str, str]],
                  jameica_path: str,
+                 plugin_xml_path: str,
                  java_path: str,
                  h2_jar_path: str):
         self._logger = logging.getLogger(__name__)
@@ -107,14 +115,18 @@ class JVereinManager:
         self._local_repo_dir = os.path.expanduser(local_repo_dir)
         self._user_properties = user_properties
         self._jameica_path = jameica_path
+        self._plugin_xml_path = plugin_xml_path
         self._java_path = java_path
         self._h2_jar_path = h2_jar_path
 
         self._jameica_dir = os.path.join(self._local_repo_dir, "jameica")
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
+        self._config_path = os.path.join(self._local_repo_dir, "config.ini")
         self._keystore_path = os.path.join(self._jameica_dir, "cfg", "jameica.keystore")
 
         self._databases = []
+        self._config = configparser.ConfigParser()
+        self._read_config()
 
     @property
     def user_properties(self):
@@ -396,7 +408,44 @@ class JVereinManager:
         finally:
             os.unlink(temp_file.name)
 
+    def _get_jameica_version(self) -> str:
+        tree = ET.parse(self._plugin_xml_path)
+        root = tree.getroot()
+        version = root.attrib["version"]
+        self._logger.debug(f"current jameica version: {version}")
+        return version
+
+    def _read_config(self):
+        self._config.read(self._config_path)
+
+    def _write_config(self):
+        with open(self._config_path, "w") as f:
+            self._config.write(f)
+
+    def update_expected_jameica_version(self):
+        self._config["Jameica"] = {
+            "expectedversion": self._get_jameica_version()
+        }
+        self._write_config()
+
+    def _check_jameica_version(self):
+        current = self._get_jameica_version()
+        try:
+            expected = self._config["Jameica"]["expectedversion"]
+        except KeyError:
+            self._logger.info(f"First start - setting expected Jameica version to '{current}'.")
+            self.update_expected_jameica_version()
+            expected = current
+
+        if expected != current:
+            raise JameicaVersionDiffersError()
+
     def setup(self, master_password: str):
+        """
+        Raises:
+            JameicaVersionDiffersError: if the current Jameica version differs from the expected one
+        """
+        self._check_jameica_version()
         self._insert_user_properties_into_properties_files()
         self._register_all_databases(master_password)
         self._restore_all_databases()
@@ -405,6 +454,7 @@ class JVereinManager:
         """
         blocking
         """
+
         # startup arguments:
         # https://github.com/willuhn/jameica/blob/master/src/de/willuhn/jameica/system/StartupParams.java#L80
         # -f: https://www.willuhn.de/wiki/doku.php?id=support:faq#abweichendes_benutzerverzeichnis_nutzen
@@ -422,6 +472,7 @@ class JVereinManager:
         sleep(1)
 
     def teardown(self):
+        self._write_config()
         self._reset_user_properties_in_properties_files()
         self._dump_and_delete_all_databases()
         self._export_emails()
