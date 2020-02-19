@@ -99,12 +99,14 @@ class JVereinManager:
     def __init__(self,
                  local_repo_dir: str,
                  user_properties: Dict[str, Dict[str, str]],
+                 jameica_path: str,
                  java_path: str,
                  h2_jar_path: str):
         self._logger = logging.getLogger(__name__)
 
         self._local_repo_dir = os.path.expanduser(local_repo_dir)
         self._user_properties = user_properties
+        self._jameica_path = jameica_path
         self._java_path = java_path
         self._h2_jar_path = h2_jar_path
 
@@ -205,6 +207,7 @@ class JVereinManager:
         Read the file passed as parameter as a properties file.
 
         based on https://stackoverflow.com/a/31852401
+        https://docs.oracle.com/javase/6/docs/api/java/util/Properties.html#load(java.io.Reader)
         """
         props = {}
         try:
@@ -393,14 +396,32 @@ class JVereinManager:
         finally:
             os.unlink(temp_file.name)
 
-    def run_jverein(self, jameica_path):
+    def setup(self, master_password: str):
+        self._insert_user_properties_into_properties_files()
+        self._register_all_databases(master_password)
+        self._restore_all_databases()
+
+    def run_jameica(self, master_password: str):
         """
         blocking
         """
+        # startup arguments:
+        # https://github.com/willuhn/jameica/blob/master/src/de/willuhn/jameica/system/StartupParams.java#L80
+        # -f: https://www.willuhn.de/wiki/doku.php?id=support:faq#abweichendes_benutzerverzeichnis_nutzen
+        # -p: https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
         subprocess.run(
-            [jameica_path, "-f", self._local_repo_dir],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            [
+                self._jameica_path,
+                "-f", self._local_repo_dir,
+                "-p", master_password
+             ],
+            #stdout=subprocess.DEVNULL,
+            #stderr=subprocess.DEVNULL,
             cwd=".")  # cd to jameica_path (may be important for windows, needs verification)
 
         sleep(1)
+
+    def teardown(self):
+        self._reset_user_properties_in_properties_files()
+        self._dump_and_delete_all_databases()
+        self._export_emails()

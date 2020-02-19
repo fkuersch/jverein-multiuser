@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 
 from jvereinmultiuser.jvereinmanager import JVereinManager
 
+JAMEICA_PATH = "/Applications/jameica2.8.6.app/jameica-macos64.sh"
 JAVA_PATH = "/Applications/jameica2.8.6.app/jre-macos64/Contents/Home/bin/java"
 H2_PATH = "/Applications/jameica2.8.6.app/lib/h2/h2-1.4.199.jar"
 
@@ -138,7 +139,7 @@ class TestJVereinManager(TestCase):
                 window.y=109
             """).strip()
 
-            j = JVereinManager(repo_dir, user_properties, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._insert_user_properties_into_properties_files()
 
             gui_file = os.path.join(repo_dir, "jameica", "cfg", "de.willuhn.jameica.gui.GUI.properties")
@@ -199,7 +200,7 @@ class TestJVereinManager(TestCase):
                 window.y=
             """).strip()
 
-            j = JVereinManager(repo_dir, user_properties, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, user_properties, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._reset_user_properties_in_properties_files()
 
             gui_file = os.path.join(repo_dir, "jameica", "cfg", "de.willuhn.jameica.gui.GUI.properties")
@@ -219,7 +220,7 @@ class TestJVereinManager(TestCase):
             jdbc_path = os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein")
             self._set_up_jverein_database(jdbc_path)
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._export_emails()
 
             expected_emails = textwrap.dedent("""\
@@ -240,7 +241,7 @@ class TestJVereinManager(TestCase):
             repo_dir = os.path.join(tmp_dir, "repo_dir")
             shutil.copytree(src_dir, repo_dir)
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             decrypted_passphrase = j._decrypt_passphrase(encrypted_passphrase, master_password)
             self.assertEqual(expected_decrypted_passphrase, decrypted_passphrase)
 
@@ -254,7 +255,7 @@ class TestJVereinManager(TestCase):
             shutil.copytree(src_dir, repo_dir)
             os.unlink(os.path.join(repo_dir, "jameica", "cfg", "jameica.keystore"))
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             self.assertRaises(FileNotFoundError, j._decrypt_passphrase, encrypted_passphrase, master_password)
 
     def test__register_all_databases(self):
@@ -263,7 +264,7 @@ class TestJVereinManager(TestCase):
             repo_dir = os.path.join(tmp_dir, "repo_dir")
             shutil.copytree(src_dir, repo_dir)
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
 
             expected_databases = [
@@ -288,7 +289,7 @@ class TestJVereinManager(TestCase):
             os.unlink(os.path.join(
                 repo_dir, "jameica", "cfg", "de.willuhn.jameica.hbci.rmi.HBCIDBService.properties"))
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
 
             expected_databases = [
@@ -315,7 +316,7 @@ class TestJVereinManager(TestCase):
             with open(sql_path, "w") as f:
                 f.write(EXAMPLE_JVEREIN_DATABASE)
 
-            j = JVereinManager(repo_dir, {}, JAVA_PATH, H2_PATH)
+            j = JVereinManager(repo_dir, {}, JAMEICA_PATH, JAVA_PATH, H2_PATH)
             j._register_all_databases("password")
             j._restore_all_databases()
             self.assertTrue(os.path.exists(db_path))
