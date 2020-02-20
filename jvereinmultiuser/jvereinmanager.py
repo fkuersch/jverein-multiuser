@@ -1,5 +1,6 @@
 import os
 import jks
+import sys
 import time
 import base64
 import logging
@@ -7,8 +8,8 @@ import textwrap
 import subprocess
 import configparser
 from time import sleep
-from typing import Dict
 from Crypto.PublicKey import RSA
+from typing import Dict, Optional
 import xml.etree.ElementTree as ET
 from tempfile import NamedTemporaryFile
 
@@ -96,6 +97,27 @@ so no need to change this file anymore.
 https://github.com/willuhn/jameica/commit/5fc223f9d0f240b4a8d5428a22ac98d529c59344
 """
 
+_DEFAULT_PATHS = {
+    "windows": {
+        "JAMEICA_EXEC": r"C:\Program Files\Jameica\jameica-start.bat",
+        "PLUGIN_XML": r"C:\Program Files\Jameica\plugin.xml",
+        "JAVA": r"C:\Program Files\Jameica\javaruntime\bin\java.exe",
+        "H2_DIR": r"C:\Program Files\Jameica\lib\h2",
+    },
+    "linux": {
+        "JAMEICA_EXEC": "/opt/jameica/jameica.sh",
+        "PLUGIN_XML": "/opt/jameica/plugin.xml",
+        "JAVA": "/opt/jameica/javaruntime/bin/java",
+        "H2_DIR": "/opt/jameica/lib/h2",
+    },
+    "macos": {
+        "JAMEICA_EXEC": "/Applications/jameica.app/jameica-macos64.sh",
+        "PLUGIN_XML": "/Applications/jameica.app/plugin.xml",
+        "JAVA": "/Applications/jameica.app/jre-macos64/Contents/Home/bin/java",
+        "H2_DIR": "/Applications/jameica.app/lib/h2",
+    }
+}
+
 
 class JameicaVersionDiffersError(Exception):
     """ The current Jameica version is different than the expected one """
@@ -105,19 +127,31 @@ class JVereinManager:
 
     def __init__(self,
                  local_repo_dir: str,
-                 user_properties: Dict[str, Dict[str, str]],
-                 jameica_path: str,
-                 plugin_xml_path: str,
-                 java_path: str,
-                 h2_jar_path: str):
+                 user_properties: Optional[Dict[str, Dict[str, str]]] = None,
+                 jameica_exec_path: Optional[str] = None,
+                 plugin_xml_path: Optional[str] = None,
+                 java_path: Optional[str] = None,
+                 h2_jar_path: Optional[str] = None):
+
         self._logger = logging.getLogger(__name__)
 
         self._local_repo_dir = os.path.expanduser(local_repo_dir)
-        self._user_properties = user_properties
-        self._jameica_path = jameica_path
-        self._plugin_xml_path = plugin_xml_path
-        self._java_path = java_path
-        self._h2_jar_path = h2_jar_path
+        self.user_properties = user_properties if user_properties else {}
+
+        platform = "linux"
+        if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
+            platform = "windows"
+        elif sys.platform.startswith("darwin"):
+            platform = "macos"
+
+        self._jameica_path = (jameica_exec_path if jameica_exec_path
+                              else _DEFAULT_PATHS[platform]["JAMEICA_EXEC"])
+        self._plugin_xml_path = (plugin_xml_path if plugin_xml_path
+                                 else _DEFAULT_PATHS[platform]["PLUGIN_XML"])
+        self._java_path = (java_path if java_path
+                           else _DEFAULT_PATHS[platform]["JAVA"])
+        self._h2_jar_path = (h2_jar_path if h2_jar_path
+                             else self._get_h2_jar_path(_DEFAULT_PATHS[platform]["H2_DIR"]))
 
         self._jameica_dir = os.path.join(self._local_repo_dir, "jameica")
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
@@ -128,9 +162,12 @@ class JVereinManager:
         self._config = configparser.ConfigParser()
         self._read_config()
 
-    @property
-    def user_properties(self):
-        return self._user_properties
+    def _get_h2_jar_path(self, h2_dir: str) -> str:
+        # reversed: if there are multiple .jar files, we use the newest one
+        for filename in sorted(os.listdir(h2_dir), reverse=True):
+            if filename.startswith("h2-") and filename.endswith(".jar"):
+                return os.path.join(h2_dir, filename)
+        return ""
 
     def _insert_user_properties_into_properties_files(self):
         """
@@ -147,7 +184,7 @@ class JVereinManager:
                         for prop, template_value in properties.items():
                             if line.startswith(f"{prop}="):
                                 try:
-                                    user_value = self._user_properties[config_path][prop]
+                                    user_value = self.user_properties[config_path][prop]
                                 except KeyError:
                                     pass
                                 else:
@@ -186,7 +223,7 @@ class JVereinManager:
             except FileNotFoundError:
                 continue
 
-        self._user_properties = new_user_properties
+        self.user_properties = new_user_properties
 
     def _decrypt_passphrase(self, encrypted_base64_passphrase: str, keystore_password: str) -> str:
         encrypted_bytes = base64.b64decode(encrypted_base64_passphrase.encode('ascii'))
