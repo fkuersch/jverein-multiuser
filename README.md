@@ -1,3 +1,7 @@
+TODO: this is still work in progress. please hold the line...
+
+
+
 # jverein-multiuser: jVerein mit mehreren Benutzern verwenden
 
 jverein-multiuser bietet Multiuser-Support für jVerein mit beliebig vielen Nutzern. Dafür werden die gesamten Jameica-Daten mit dem Versionskontrollsystem Git verwaltet und in einem Online-Repository gespeichert.
@@ -25,6 +29,14 @@ Falls kritische Änderungen missglücken, kann man die Änderungen verwerfen und
 #### Externes Backup
 
 Falls die lokalen Dateien verloren gehen oder beschädigt werden, ist eine weitere Version immer noch im Online-Repository vorhanden (inklusive der gesamten Historie). Es ist natürlich trotzdem sehr empfehlenswert, regelmäßig weitere Backups anzulegen - ggf. auch automatisch über das Online-Repository.
+
+### Benutzerspezifische Jameica-Einstellungen
+
+Jameica-Einstellungen, wie z. B. die Fenster-Größe oder die zuletzt geöffneten Ordner, werden vor dem Start für den jeweiligen Nutzer eingerichtet und lokal gespeichert, nachdem das Programm beendet wurde.
+
+### Synchronisation von Updates
+
+jverein-multiuser stellt sicher, dass alle Nutzer die gleiche Jameica-Version benutzen. Wenn ein Nutzer Jameica aktualisiert, werden alle anderen Nutzer ebenfalls aufgefordert, ein Update durchzuführen. Die Plugins (Hibiscus, Jverein, ...) befinden sich im Repository und werden deshalb automatisch synchronisiert.
 
 ### Export von E-Mail-Adressen
 
@@ -78,9 +90,61 @@ Ja, es gibt diverse alternative Ansätze, Multiuser-Fähigkeit für jVerein umzu
 
 ### Voraussetzungen
 
-* [Standardinstallation](https://doku.jverein.de/allgemein/installation) von Jameica, Hibiscus und jVerein mit mindestens Jameica 2.6.3, ggf. per [Jameica-Mashup](https://hibiscus-mashup.derrichter.de/)
+* [Standardinstallation](https://doku.jverein.de/allgemein/installation) von Jameica, Hibiscus und jVerein mit mindestens Jameica 2.6.3
+  * Empfehlenswert ist die Installation von Jameica per [Hibiscus-Mashup](https://hibiscus-mashup.derrichter.de/), da diese Installation eine Java-Umgebung mitbringt
   * Datenbank: H2 (Standard), nicht MySQL
-* Python 3.8+
+* Git
+* Python 3.7+
+
+
+
+TODO: Bestehende Jameica/jVerein-Installation
+
+
+
+### Ubuntu
+
+Hibiscus-Mashup (Linux 64-Bit) herunterladen: https://hibiscus-mashup.derrichter.de/index.php/download
+
+Terminal öffnen
+
+```
+# Git installieren:
+sudo apt update && sudo apt install -y git
+
+# Hibiscus-Mashup installieren:
+cd ~/Downloads
+chmod +x Jameica-Hibiscus_Linux64-Installer.run
+./Jameica-Hibiscus_Linux64-Installer.run
+```
+
+
+
+TODO: Installation jverein-multiuser
+
+
+
+jverein-multiuser das erste Mal starten:
+
+```
+jverein-multiuser
+```
+
+
+
+
+
+Wenn die Daten auf dem lokalen Rechner verbleiben sollen, kann ein Git-Repository angelegt werden, das dann als Remote-Repository verwendet wird:
+
+```
+cd
+mkdir .jverein-multiuser-remote-repo.git
+git init --bare .jverein-multiuser-remote-repo.git
+```
+
+
+
+
 
 
 
@@ -92,5 +156,5 @@ Ja, es gibt diverse alternative Ansätze, Multiuser-Fähigkeit für jVerein umzu
 
 https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
 
-### Ändern des Master-Passworts
+### 
 
