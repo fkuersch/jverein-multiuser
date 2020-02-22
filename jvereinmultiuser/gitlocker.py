@@ -200,10 +200,11 @@ class GitLocker:
                     return False
         return True
 
-    def do_initial_setup(self, initial_commit_file: str):
+    def do_initial_setup(self, initial_commit_file: str, initial_commit_file_dst_path: str):
         """
         Args:
             initial_commit_file: Path to file which will be committed if we cloned an empty repo
+            initial_commit_file_dst_path: Relative path to which the file above should be copied
         """
         ret, output, error = self._execute_git(["clone", self._remote_repo, "."])
         if ret != 0:
@@ -211,7 +212,7 @@ class GitLocker:
 
         if "cloned an empty repository" in error:
             self._logger.warning("Cloned an empty repository. Creating an initial commit.")
-            dst_path = os.path.join(self._local_repo, os.path.basename(initial_commit_file))
+            dst_path = os.path.join(self._local_repo, initial_commit_file_dst_path)
             shutil.copyfile(initial_commit_file, dst_path)
             self.stage_and_commit("initial commit")
 
@@ -223,6 +224,9 @@ class GitLocker:
         ret, out, err = self._execute_git(
             ["pull", "--prune", "origin", "+refs/tags/*:refs/tags/*"])
         if ret == 1 and "no candidates for merging among the refs" in err:
+            # you provided a wildcard refspec which had no
+            # matches on the remote end.
+            # -> we can ignore this error safely
             ret = 0
 
         if ret != 0:

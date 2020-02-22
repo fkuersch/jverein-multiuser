@@ -60,7 +60,10 @@ class TestGitLocker(TestCase):
                 AUTHOR_EMAIL,
                 INSTANCE_NAME
             )
-            g.do_initial_setup(os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"))
+            g.do_initial_setup(
+                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                "jverein.gitignore"
+            )
 
             # author needs to be set for the initial commit
             # get "<author> <email>" of last commit
@@ -131,7 +134,10 @@ class TestGitLocker(TestCase):
             self.assertFalse(g.is_synced_with_remote_repo())
 
             # cloned repo is empty, so there's an initial commit to push
-            g.do_initial_setup(os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"))
+            g.do_initial_setup(
+                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                "jverein.gitignore"
+            )
             self.assertFalse(g.is_synced_with_remote_repo())
 
             g.push()
@@ -166,7 +172,10 @@ class TestGitLocker(TestCase):
             self.assertFalse(g.need_to_commit())
 
             # initial commit
-            g.do_initial_setup(os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"))
+            g.do_initial_setup(
+                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                "jverein.gitignore"
+            )
             self.assertFalse(g.need_to_commit())
 
             # unstaged file
@@ -195,7 +204,10 @@ class TestGitLocker(TestCase):
 
             self.assertFalse(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
 
-            g.do_initial_setup(os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"))
+            g.do_initial_setup(
+                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                "jverein.gitignore"
+            )
 
             self.assertTrue(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
             self.assertFalse(g.is_synced_with_remote_repo())
@@ -220,7 +232,10 @@ class TestGitLocker(TestCase):
             self.assertFalse(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
             self.assertFalse(os.path.exists(os.path.join(local_repo, "example")))
 
-            g.do_initial_setup(os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"))
+            g.do_initial_setup(
+                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                "jverein.gitignore"
+            )
 
             # initial_commit_file (jverein.gitignore) must not be copied if the repository already existed
             self.assertFalse(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
@@ -246,7 +261,7 @@ class TestGitLocker(TestCase):
 
             self.assertRaises(GitError, g.pull)
 
-            g.do_initial_setup("")
+            g.do_initial_setup("", "")
 
             # changed remote
             with open(os.path.join(remote_repo, "example2"), "w") as f:
@@ -297,7 +312,7 @@ class TestGitLocker(TestCase):
             # empty directory
             self.assertRaises(GitError, g.push)
 
-            g.do_initial_setup("")
+            g.do_initial_setup("", "")
 
             # no changes
             self.assertRaises(GitError, g.push)
@@ -340,7 +355,7 @@ class TestGitLocker(TestCase):
                 INSTANCE_NAME
             )
 
-            g.do_initial_setup("")
+            g.do_initial_setup("", "")
 
             self.assertIsNone(g.get_lock_info())
             self.assertFalse(g.is_locked_by_me())
@@ -379,8 +394,8 @@ class TestGitLocker(TestCase):
                 INSTANCE_NAME2
             )
 
-            g1.do_initial_setup("")
-            g2.do_initial_setup("")
+            g1.do_initial_setup("", "")
+            g2.do_initial_setup("", "")
 
             self.assertIsNone(g1.get_lock_info())
             self.assertFalse(g1.is_locked_by_me())
@@ -436,7 +451,7 @@ class TestGitLocker(TestCase):
                 INSTANCE_NAME
             )
 
-            g.do_initial_setup("")
+            g.do_initial_setup("", "")
             self.assertTrue(os.path.exists(example_file))
 
             # clear unstaged file
