@@ -507,6 +507,12 @@ class JVereinManager:
         blocking
         """
 
+        stdout = subprocess.DEVNULL
+        stderr = subprocess.DEVNULL
+        if self._logger.getEffectiveLevel() in [logging.DEBUG, logging.INFO]:
+            stdout = None
+            stderr = None
+
         # startup arguments:
         # https://github.com/willuhn/jameica/blob/master/src/de/willuhn/jameica/system/StartupParams.java#L80
         # -f: https://www.willuhn.de/wiki/doku.php?id=support:faq#abweichendes_benutzerverzeichnis_nutzen
@@ -517,8 +523,8 @@ class JVereinManager:
                 "-f", self._local_repo_dir,
                 "-p", master_password
              ],
-            #stdout=subprocess.DEVNULL,
-            #stderr=subprocess.DEVNULL,
+            stdout=stdout,
+            stderr=stderr,
             cwd=".")  # cd to jameica_path (may be important for windows, needs verification)
 
         sleep(1)
