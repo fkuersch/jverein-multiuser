@@ -5,6 +5,7 @@ import time
 import base64
 import logging
 import textwrap
+import traceback
 import subprocess
 import configparser
 from time import sleep
@@ -122,6 +123,15 @@ _DEFAULT_PATHS = {
 class JameicaVersionDiffersError(Exception):
     """ The current Jameica version is different than the expected one """
 
+    def __init__(self, expected_version, current_version, *args: object) -> None:
+        super().__init__(*args)
+        self.expected_version = expected_version
+        self.current_version = current_version
+
+
+class DecryptionError(Exception):
+    """ Decryption failed """
+
 
 class JVereinManager:
 
@@ -232,22 +242,27 @@ class JVereinManager:
         try:
             pk_entry = keystore.private_keys["jameica"]
         except KeyError:
-            raise KeyError(f"the keystore at '{self._keystore_path}' doesn't contain a private key named 'jameica'")
+            self._logger.error(f"the keystore at '{self._keystore_path}' doesn't contain a private key named 'jameica'")
+            raise DecryptionError()
 
-        private_key = "\n".join(
-            [f"-----BEGIN RSA PRIVATE KEY-----"]
-            + textwrap.wrap(base64.b64encode(pk_entry.pkey).decode('ascii'), 64)
-            + [f"-----END RSA PRIVATE KEY-----"]
-        ).encode()
+        try:
+            private_key = "\n".join(
+                [f"-----BEGIN RSA PRIVATE KEY-----"]
+                + textwrap.wrap(base64.b64encode(pk_entry.pkey).decode('ascii'), 64)
+                + [f"-----END RSA PRIVATE KEY-----"]
+            ).encode()
 
-        private_key_object = RSA.importKey(private_key)
-        decrypted_bytes = private_key_object.decrypt(encrypted_bytes)
+            private_key_object = RSA.importKey(private_key)
+            decrypted_bytes = private_key_object.decrypt(encrypted_bytes)
 
-        # The passphrase for the hibiscus database (for both user and encryption)
-        # is the base64 representation of the decrypted bytes, see:
-        # https://github.com/willuhn/hibiscus/blob/a85117bc381f2f16937a95ceb72d9df9ca9261b2/src/de/willuhn/jameica/hbci/server/DBSupportH2Impl.java#L88
-        # https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
-        passphrase = base64.b64encode(decrypted_bytes).decode()
+            # The passphrase for the hibiscus database (for both user and encryption)
+            # is the base64 representation of the decrypted bytes, see:
+            # https://github.com/willuhn/hibiscus/blob/a85117bc381f2f16937a95ceb72d9df9ca9261b2/src/de/willuhn/jameica/hbci/server/DBSupportH2Impl.java#L88
+            # https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
+            passphrase = base64.b64encode(decrypted_bytes).decode()
+        except:
+            traceback.print_exc(file=sys.stdout)
+            raise DecryptionError()
 
         return f"{passphrase} {passphrase}"
 
@@ -475,7 +490,7 @@ class JVereinManager:
             expected = current
 
         if expected != current:
-            raise JameicaVersionDiffersError()
+            raise JameicaVersionDiffersError(expected_version=expected, current_version=current)
 
     def setup(self, master_password: str):
         """
