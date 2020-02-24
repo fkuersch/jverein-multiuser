@@ -519,7 +519,7 @@ class JVereinManager:
         # -p: https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
         args = [
             self._jameica_path,
-            "-f", self._local_repo_dir,
+            "-f", self._jameica_dir,
             "-p", master_password
         ]
         self._logger.info(f"executing: {' '.join(args)}")
