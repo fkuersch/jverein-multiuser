@@ -517,12 +517,14 @@ class JVereinManager:
         # https://github.com/willuhn/jameica/blob/master/src/de/willuhn/jameica/system/StartupParams.java#L80
         # -f: https://www.willuhn.de/wiki/doku.php?id=support:faq#abweichendes_benutzerverzeichnis_nutzen
         # -p: https://www.willuhn.de/wiki/doku.php?id=support:faq#wie_werden_meine_persoenlichen_daten_geschuetzt
+        args = [
+            self._jameica_path,
+            "-f", self._local_repo_dir,
+            "-p", master_password
+        ]
+        self._logger.info(f"executing: {' '.join(args)}")
         subprocess.run(
-            [
-                self._jameica_path,
-                "-f", self._local_repo_dir,
-                "-p", master_password
-             ],
+            args,
             stdout=stdout,
             stderr=stderr,
             cwd=".")  # cd to jameica_path (may be important for windows, needs verification)

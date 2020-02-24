@@ -103,6 +103,10 @@ class GitLocker:
             self._logger.error(f"RETURNCODE: {proc.returncode}")
             self._logger.error(f"STDOUT: {stdout_str}")
             self._logger.error(f"STDERR: {stderr_str}")
+        else:
+            self._logger.info(f"RETURNCODE: {proc.returncode}")
+            self._logger.info(f"STDOUT: {stdout_str}")
+            self._logger.info(f"STDERR: {stderr_str}")
 
         return proc.returncode, stdout_str, stderr_str
 
