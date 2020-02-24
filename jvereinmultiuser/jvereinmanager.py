@@ -10,10 +10,9 @@ import subprocess
 import configparser
 from time import sleep
 from Crypto.PublicKey import RSA
-from typing import Dict, Optional
 import xml.etree.ElementTree as ET
+from typing import Dict, Optional, List
 from tempfile import NamedTemporaryFile
-
 
 # Attention!
 # Jameica uses raw RSA encryption without padding (textbook RSA).
@@ -26,7 +25,6 @@ from tempfile import NamedTemporaryFile
 # monkey-patch for PyCrypto & Python 3.8,
 # see https://github.com/dlitz/pycrypto/issues/283
 time.clock = time.process_time
-
 
 _USER_PROPERTIES_TEMPLATE = {
     "cfg/de.jost_net.JVerein.gui.action.FreiesFormularAction.properties": {
@@ -303,7 +301,9 @@ class JVereinManager:
         try:
             encrypted_passphrase = properties[property_name]
         except KeyError:
-            self._logger.warning(f"unable to register database '{db_path}': No such property named '{property_name} in '{properties_file_path}'")
+            self._logger.warning(
+                f"unable to register database '{db_path}': "
+                f"No such property named '{property_name} in '{properties_file_path}'")
             return
         passphrase = self._decrypt_passphrase(encrypted_passphrase, master_password)
         self._databases.append((db_path, username, passphrase))
@@ -354,18 +354,38 @@ class JVereinManager:
         # http://h2database.com/html/tutorial.html#upgrade_backup_restore
 
         sql_file_path = f"{db_path}.sql"
-        proc = subprocess.run([self._java_path,
-                               "-cp", self._h2_jar_path,
-                               "org.h2.tools.Script",
-                               "-url", f"jdbc:h2:{db_path}",
-                               "-user", username,
-                               "-password", passphrase,
-                               "-script", sql_file_path])
+        ret, stdout, stderr = self._execute_subprocess([
+            self._java_path,
+            "-cp", self._h2_jar_path,
+            "org.h2.tools.Script",
+            "-url", f"jdbc:h2:{db_path}",
+            "-user", username,
+            "-password", passphrase,
+            "-script", sql_file_path
+        ])
 
-        if proc.returncode != 0:
+        if ret != 0:
             raise Exception("Konnte Datenbank nicht dumpen.")
 
         os.unlink(full_db_path)
+
+    def _execute_subprocess(self, args: List[str], cwd=None):
+        self._logger.info(f"executing: '{' '.join(args)}'")
+
+        proc = subprocess.run(args, capture_output=True, cwd=cwd)
+        stdout_str = proc.stdout.decode()
+        stderr_str = proc.stderr.decode()
+
+        if proc.returncode != 0:
+            self._logger.error(f"RETURNCODE: {proc.returncode}")
+            self._logger.error(f"STDOUT: {stdout_str}")
+            self._logger.error(f"STDERR: {stderr_str}")
+        else:
+            self._logger.info(f"RETURNCODE: {proc.returncode}")
+            self._logger.info(f"STDOUT: {stdout_str}")
+            self._logger.info(f"STDERR: {stderr_str}")
+
+        return proc.returncode, stdout_str, stderr_str
 
     def _dump_and_delete_all_databases(self):
         for db, username, passphrase in self._databases:
@@ -384,15 +404,17 @@ class JVereinManager:
 
         # http://h2database.com/html/tutorial.html#upgrade_backup_restore
 
-        proc = subprocess.run([self._java_path,
-                               "-cp", self._h2_jar_path,
-                               "org.h2.tools.RunScript",
-                               "-url", f"jdbc:h2:{db_path}",
-                               "-user", username,
-                               "-password", passphrase,
-                               "-script", full_sql_path])
+        ret, stdout, stderr = self._execute_subprocess([
+            self._java_path,
+            "-cp", self._h2_jar_path,
+            "org.h2.tools.RunScript",
+            "-url", f"jdbc:h2:{db_path}",
+            "-user", username,
+            "-password", passphrase,
+            "-script", full_sql_path
+        ])
 
-        if proc.returncode != 0:
+        if ret != 0:
             raise Exception("Konnte Datenbank nicht wiederherstellen.")
 
         os.unlink(full_sql_path)
@@ -444,16 +466,20 @@ class JVereinManager:
                 pass
             jverein_db_path = os.path.join(
                 self._jameica_dir, "jverein", "h2db", "jverein")
-            proc = subprocess.run([self._java_path,
-                                   "-cp", self._h2_jar_path,
-                                   "org.h2.tools.RunScript",
-                                   "-url", f"jdbc:h2:{jverein_db_path}",
-                                   "-user", "jverein",
-                                   "-password", "jverein",
-                                   "-script", temp_file.name],
-                                  cwd=dump_dir)
+            ret, stdout, stderr = self._execute_subprocess(
+                [
+                    self._java_path,
+                    "-cp", self._h2_jar_path,
+                    "org.h2.tools.RunScript",
+                    "-url", f"jdbc:h2:{jverein_db_path}",
+                    "-user", "jverein",
+                    "-password", "jverein",
+                    "-script", temp_file.name
+                ],
+                cwd=dump_dir
+            )
 
-            if proc.returncode != 0:
+            if ret != 0:
                 raise Exception("Konnte E-Mails nicht exportieren.")
         except Exception as e:
             raise e
