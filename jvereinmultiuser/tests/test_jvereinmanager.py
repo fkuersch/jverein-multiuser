@@ -270,12 +270,15 @@ class TestJVereinManager(TestCase):
 
             expected_databases = [
                 (os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein"),
+                 "",
                  "jverein",
                  "jverein"),
                 (os.path.join(repo_dir, "jameica", "hibiscus", "h2db", "hibiscus"),
+                 ";CIPHER=XTEA",
                  "hibiscus",
                  "Kh3BdGN9haQVFS2eJLne4aBINbQ= Kh3BdGN9haQVFS2eJLne4aBINbQ="),
                 (os.path.join(repo_dir, "jameica", "hibiscus.mashup", "h2db", "mashup"),
+                 ";CIPHER=XTEA",
                  "mashup",
                  "WIESrepL3wE= WIESrepL3wE=")
             ]
@@ -295,9 +298,11 @@ class TestJVereinManager(TestCase):
 
             expected_databases = [
                 (os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein"),
+                 "",
                  "jverein",
                  "jverein"),
                 (os.path.join(repo_dir, "jameica", "hibiscus.mashup", "h2db", "mashup"),
+                 ";CIPHER=XTEA",
                  "mashup",
                  "WIESrepL3wE= WIESrepL3wE=")
             ]

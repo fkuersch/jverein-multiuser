@@ -288,7 +288,7 @@ class JVereinManager:
         return props
 
     def _register_database(self, db_path: str, username: str, passphrase: str):
-        self._databases.append((db_path, username, passphrase))
+        self._databases.append((db_path, "", username, passphrase))
 
     def _register_encrypted_database(self,
                                      db_path: str,
@@ -306,7 +306,7 @@ class JVereinManager:
                 f"No such property named '{property_name} in '{properties_file_path}'")
             return
         passphrase = self._decrypt_passphrase(encrypted_passphrase, master_password)
-        self._databases.append((db_path, username, passphrase))
+        self._databases.append((f"{db_path}", ";CIPHER=XTEA", username, passphrase))
 
     def _register_all_databases(self, master_password: str):
         self._register_database(
@@ -331,7 +331,7 @@ class JVereinManager:
             master_password=master_password
         )
 
-    def _dump_and_delete_h2_database(self, db_path: str, username: str, passphrase: str):
+    def _dump_and_delete_h2_database(self, db_path: str, db_options: str, username: str, passphrase: str):
         """
         Args:
             db_path: absolute database path without extension
@@ -358,7 +358,7 @@ class JVereinManager:
             self._java_path,
             "-cp", self._h2_jar_path,
             "org.h2.tools.Script",
-            "-url", f"jdbc:h2:{db_path}",
+            "-url", f"jdbc:h2:{db_path}{db_options}",
             "-user", username,
             "-password", passphrase,
             "-script", sql_file_path
@@ -388,10 +388,10 @@ class JVereinManager:
         return proc.returncode, stdout_str, stderr_str
 
     def _dump_and_delete_all_databases(self):
-        for db, username, passphrase in self._databases:
-            self._dump_and_delete_h2_database(db, username, passphrase)
+        for db, options, username, passphrase in self._databases:
+            self._dump_and_delete_h2_database(db, options, username, passphrase)
 
-    def _restore_h2_database(self, db_path: str, username: str, passphrase: str):
+    def _restore_h2_database(self, db_path: str, db_options: str, username: str, passphrase: str):
         """
         Args:
             db_path: absolute database path without extension
@@ -408,7 +408,7 @@ class JVereinManager:
             self._java_path,
             "-cp", self._h2_jar_path,
             "org.h2.tools.RunScript",
-            "-url", f"jdbc:h2:{db_path}",
+            "-url", f"jdbc:h2:{db_path}{db_options}",
             "-user", username,
             "-password", passphrase,
             "-script", full_sql_path
@@ -420,8 +420,8 @@ class JVereinManager:
         os.unlink(full_sql_path)
 
     def _restore_all_databases(self):
-        for db, username, passphrase in self._databases:
-            self._restore_h2_database(db, username, passphrase)
+        for db, options, username, passphrase in self._databases:
+            self._restore_h2_database(db, options, username, passphrase)
 
     def _export_emails(self):
         """
