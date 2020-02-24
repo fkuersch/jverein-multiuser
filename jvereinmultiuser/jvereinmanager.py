@@ -565,5 +565,5 @@ class JVereinManager:
     def teardown(self):
         self._write_config()
         self._reset_user_properties_in_properties_files()
-        self._dump_and_delete_all_databases()
         self._export_emails()
+        self._dump_and_delete_all_databases()
