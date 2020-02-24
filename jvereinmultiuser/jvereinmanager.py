@@ -236,7 +236,12 @@ class JVereinManager:
     def _decrypt_passphrase(self, encrypted_base64_passphrase: str, keystore_password: str) -> str:
         encrypted_bytes = base64.b64decode(encrypted_base64_passphrase.encode('ascii'))
 
-        keystore = jks.KeyStore.load(self._keystore_path, keystore_password)
+        try:
+            keystore = jks.KeyStore.load(self._keystore_path, keystore_password)
+        except jks.KeystoreSignatureException:
+            self._logger.error(f"unable to load the keystore. incorrect password?")
+            self._logger.info(f"keystore file: {self._keystore_path}")
+            raise DecryptionError()
         try:
             pk_entry = keystore.private_keys["jameica"]
         except KeyError:
