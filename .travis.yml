@@ -1,0 +1,34 @@
+language: shell
+jobs:
+  include:
+    - name: "Windows Build"
+      os: windows
+      before_install:
+        - choco install python --version=3.7
+        - python -m pip install --upgrade pip
+      env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
+      install:
+        # required for PyCrypto,
+        # see: https://stackoverflow.com/a/41843310/12927786
+        - cd "/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Auxiliary/Build" && ./vcvars64.bat
+        - export CL="-FI\"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.16.27023\include\stdint.h\""
+        - cd "$TRAVIS_BUILD_DIR"
+        - pip install -r requirements.txt
+        - pip install PyInstaller
+      script:
+        - bash -c echo "Tests would go here"
+      before_deploy:
+        - pyinstaller "app.spec"
+        - ls dist
+deploy:
+  provider: releases
+  name: $TRAVIS_TAG (DRAFT)
+  file_glob: true
+  file: dist/*
+  skip_cleanup: true
+  api_key:
+    secure: IMdBErkH7VhNgs8cXK6NOb7EF1dYmUm74y2NIzD36GHDz9BCYyP1oZD86v6fehdCflCZXWxbojPrGCGC0lHbTUmOxkWtCQaxGp8rso9e4RkaJdevLePOGSxrQZK1ifCGP5lO8bzM8UcuJcF0kvJZSpjs8YM4IshAr6G5kzREaNAZF5v4AQZ6PVrPsaIKtVL4Ye+7hkOx5i8ZwGziPf0DyN6zXj5sQCHgi88K4Z2lDnmDYN1YsM3nWuhVJvL7U1VazuofzscGmTHwYKZx/WAvzsAdWjfdvg9u5TE1EtrR90IBKnxroy2VZ2sdKMFYdZ1HgASFTpS5frVDCRwB9akDytpY1fJMTQTiob/fmN+bMM7ClwjgS4gKAv6TI0+BRYCneGEiVOuYGMVJFZ2KAwWoJN0T/n9IptTJE8LuzT8zGcyVkyZkJ51pOqXj52q55AobMReAuCoapjCY6lB+3bdT11TuYyfOKx31G4EVd/ed2RFpF7Hq4ktYpN7RpMQDfe3cvTWcuqQ/tZQ46ZUSpWhjAXzZf+S1DeT/KyniInKi7Vz5W40ZnQtI/9Bbqa/M83U34sIpdcrHSM/Gj3LcFyPBLbGzwDVyKsnrg/iWq+ulACkoUclXZinztLwvLCj5+ACzxXGFhalAZsu7HmkO9HhlMqzjT7Tzm1eiRxcEqeh2taU=
+  on:
+    tags: true
+    repo: fkuersch/jverein-multiuser
+    branch: dev-travis
