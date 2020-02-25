@@ -1,9 +1,8 @@
 # JetBrains IDE
 .idea/
 
-venv
-
-config/user.py
-attraktor-manage.log
+venv*
+build
+dist
 
 *.pyc
