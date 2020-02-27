@@ -13,6 +13,7 @@ jobs:
       install:
         # required for PyCrypto,
         # see: https://stackoverflow.com/a/41843310/12927786
+        # see jvereinmanager.py for further explanation
         - cd "/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Auxiliary/Build" && ./vcvars64.bat
         - export CL="-FI\"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.16.27023\include\stdint.h\""
         - cd "$TRAVIS_BUILD_DIR"

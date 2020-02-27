@@ -5,7 +5,9 @@ block_cipher = None
 
 a = Analysis(['jvereinmultiuser/app.py'],
              binaries=[],
-             datas=[],
+             datas=[
+                ('jvereinmultiuser/resources/*', 'jvereinmultiuser/resources')
+             ],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

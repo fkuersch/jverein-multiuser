@@ -1,10 +1,9 @@
 import os
 import errno
-import shutil
 import logging
 import subprocess
 from datetime import datetime
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Any
 
 
 class IsLockedError(Exception):
@@ -204,11 +203,11 @@ class GitLocker:
                     return False
         return True
 
-    def do_initial_setup(self, initial_commit_file: str, initial_commit_file_dst_path: str):
+    def do_initial_setup(self, initial_commit_data: Optional[Any], initial_commit_file_dst_path: str):
         """
         Args:
-            initial_commit_file: Path to file which will be committed if we cloned an empty repo
-            initial_commit_file_dst_path: Relative path to which the file above should be copied
+            initial_commit_data: Data of the file which will be committed if we cloned an empty repo
+            initial_commit_file_dst_path: Relative path to which the data should be written to
         """
         ret, output, error = self._execute_git(["clone", self._remote_repo, "."])
         if ret != 0:
@@ -217,7 +216,8 @@ class GitLocker:
         if "cloned an empty repository" in error:
             self._logger.warning("Cloned an empty repository. Creating an initial commit.")
             dst_path = os.path.join(self._local_repo, initial_commit_file_dst_path)
-            shutil.copyfile(initial_commit_file, dst_path)
+            with open(dst_path, "wb") as f:
+                f.write(initial_commit_data)
             self.stage_and_commit("initial commit")
 
     def pull(self):

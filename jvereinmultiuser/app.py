@@ -3,7 +3,7 @@
 import os
 import sys
 import json
-import shutil
+import pkgutil
 import logging
 import argparse
 import textwrap
@@ -25,7 +25,7 @@ _DEFAULT_USER_CONFIG = textwrap.dedent("""\
     #computer = Maxis Laptop
     
     [Repository]
-    #remote = git.example.org:~/jverein.git
+    #remote = ssh://user@git.example.org:~/jverein.git
 """)
 
 if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
@@ -38,7 +38,7 @@ else:
     # Linux
     _DEFAULT_GIT_CMD = "/usr/bin/git"
 
-_GITIGNORE_FILE = os.path.join(os.path.dirname(__file__), "resources", "jverein.gitignore")
+_GITIGNORE_RESOURCE = os.path.join("resources", "jverein.gitignore")
 
 
 class CancelAppException(Exception):
@@ -121,7 +121,7 @@ class App:
             if response == "j":
                 print("Git-Repository wird heruntergeladen...")
                 self._gitlocker.do_initial_setup(
-                    initial_commit_file=_GITIGNORE_FILE,
+                    initial_commit_data=pkgutil.get_data("jvereinmultiuser", _GITIGNORE_RESOURCE),
                     initial_commit_file_dst_path=".gitignore"
                 )
                 print("Herunterladen war erfolgreich.")
@@ -136,7 +136,9 @@ class App:
         repo_gitignore_path = os.path.join(self._local_repo_dir, ".gitignore")
         if not os.path.exists(repo_gitignore_path):
             print("Lege .gitignore-Datei an.")
-            shutil.copyfile(_GITIGNORE_FILE, repo_gitignore_path)
+            gitignore_data = pkgutil.get_data("jvereinmultiuser", _GITIGNORE_RESOURCE)
+            with open(repo_gitignore_path, "wb") as f:
+                f.write(gitignore_data)
 
     def run(self):
         try:

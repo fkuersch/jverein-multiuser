@@ -60,8 +60,11 @@ class TestGitLocker(TestCase):
                 AUTHOR_EMAIL,
                 INSTANCE_NAME
             )
+            initial_commit_file = os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore")
+            with open(initial_commit_file, "rb") as f:
+                data = f.read()
             g.do_initial_setup(
-                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                data,
                 "jverein.gitignore"
             )
 
@@ -134,8 +137,11 @@ class TestGitLocker(TestCase):
             self.assertFalse(g.is_synced_with_remote_repo())
 
             # cloned repo is empty, so there's an initial commit to push
+            initial_commit_file = os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore")
+            with open(initial_commit_file, "rb") as f:
+                data = f.read()
             g.do_initial_setup(
-                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                data,
                 "jverein.gitignore"
             )
             self.assertFalse(g.is_synced_with_remote_repo())
@@ -172,8 +178,11 @@ class TestGitLocker(TestCase):
             self.assertFalse(g.need_to_commit())
 
             # initial commit
+            initial_commit_file = os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore")
+            with open(initial_commit_file, "rb") as f:
+                data = f.read()
             g.do_initial_setup(
-                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                data,
                 "jverein.gitignore"
             )
             self.assertFalse(g.need_to_commit())
@@ -204,8 +213,11 @@ class TestGitLocker(TestCase):
 
             self.assertFalse(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
 
+            initial_commit_file = os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore")
+            with open(initial_commit_file, "rb") as f:
+                data = f.read()
             g.do_initial_setup(
-                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                data,
                 "jverein.gitignore"
             )
 
@@ -232,8 +244,11 @@ class TestGitLocker(TestCase):
             self.assertFalse(os.path.exists(os.path.join(local_repo, "jverein.gitignore")))
             self.assertFalse(os.path.exists(os.path.join(local_repo, "example")))
 
+            initial_commit_file = os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore")
+            with open(initial_commit_file, "rb") as f:
+                data = f.read()
             g.do_initial_setup(
-                os.path.join(os.path.dirname(__file__), "..", "resources", "jverein.gitignore"),
+                data,
                 "jverein.gitignore"
             )
 
