@@ -85,7 +85,7 @@ class GitLocker:
 
         return sanitized_str
 
-    def _execute_git(self, args: List[str]) -> Tuple[int, str, str]:
+    def _execute_git(self, args: List[str], ignore_err: Optional[str] = None) -> Tuple[int, str, str]:
         git_env = os.environ.copy()
         # we need the output in english to be able to parse it properly
         git_env["LANGUAGE"] = "en_US.UTF-8"
@@ -98,7 +98,11 @@ class GitLocker:
         stdout_str = proc.stdout.decode()
         stderr_str = proc.stderr.decode()
 
-        if proc.returncode != 0:
+        ret = proc.returncode
+        if ignore_err and ignore_err in stderr_str:
+            ret = 0
+
+        if ret != 0:
             self._logger.error(f"RETURNCODE: {proc.returncode}")
             self._logger.error(f"STDOUT: {stdout_str}")
             self._logger.error(f"STDERR: {stderr_str}")
@@ -107,7 +111,7 @@ class GitLocker:
             self._logger.info(f"STDOUT: {stdout_str}")
             self._logger.info(f"STDERR: {stderr_str}")
 
-        return proc.returncode, stdout_str, stderr_str
+        return ret, stdout_str, stderr_str
 
     def _git_set_author(self):
         ret = self._execute_git(
@@ -226,12 +230,12 @@ class GitLocker:
             raise GitError("Konnte nicht updaten. Bitte Log prüfen.")
 
         ret, out, err = self._execute_git(
-            ["pull", "--prune", "origin", "+refs/tags/*:refs/tags/*"])
-        if ret == 1 and "no candidates for merging among the refs" in err:
-            # you provided a wildcard refspec which had no
-            # matches on the remote end.
-            # -> we can ignore this error safely
-            ret = 0
+            ["pull", "--prune", "origin", "+refs/tags/*:refs/tags/*"],
+            ignore_err="no candidates for merging among the refs"
+        )
+        # you provided a wildcard refspec which had no
+        # matches on the remote end.
+        # -> we can ignore this error safely
 
         if ret != 0:
             raise GitError("Konnte nicht updaten. Bitte Log prüfen.")
