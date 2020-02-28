@@ -554,11 +554,19 @@ class JVereinManager:
             "-p", master_password
         ]
         self._logger.info(f"executing: {' '.join(args)}")
+        env = os.environ.copy()
+        try:
+            del env["LD_LIBRARY_PATH"]
+            # if LD_LIBRARY_PATH is set, java will fail with java.lang.UnsatisfiedLinkError
+        except KeyError:
+            pass
         subprocess.run(
             args,
             stdout=stdout,
             stderr=stderr,
-            cwd=".")  # cd to jameica_path (may be important for windows, needs verification)
+            env=env,
+            cwd=os.path.dirname(self._jameica_path))
+        # cd to jameica_path (may be important for windows, needs verification)
 
         sleep(1)
 
