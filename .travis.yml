@@ -78,4 +78,4 @@ deploy:
   on:
     tags: true
     repo: fkuersch/jverein-multiuser
-    branch: dev-travis
+    branch: master
