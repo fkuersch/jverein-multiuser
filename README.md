@@ -48,7 +48,7 @@ Diese Liste kann verwendet werden, um die Abonnenten einer Mitglieder-Mailinglis
 
 ### An wen richtet sich jverein-multiuser?
 
-jverein-multiuser ist ein reines Terminal-Programm und setzt Grundkenntnisse mit Git voraus.
+jverein-multiuser richtet sich an Vereine, die jVerein mit mehreren Personen nutzen möchten und/oder "Savepoints" brauchen, um Fehler in der Bedienung von jVerein einfach rückgängig machen zu können. jverein-multiuser ist ein reines Terminal-Programm und setzt Grundkenntnisse mit Git voraus.
 
 ### Ist jverein-multiuser sicher?
 
@@ -60,7 +60,7 @@ Online- und Offline-Repositories auf einer verschlüsselten Festplatte oder in e
 
 Dass alle Datenbanken im Klartext-Format im Repository abgelegt werden, hat in erster Linie einen technischen Grund: Git kann mit Änderungen von Binärdaten (wie die Datenbank-Dateien) nicht gut umgehen - das Repository würde nach einigen Monaten oder Jahren der Nutzung mehrere GB in Anspruch nehmen, die Synchronisation wäre entsprechend langsam.
 
-Der Export als Klartext hat zudem den Vorteil, dass Änderungen an den Datenbanken einfacher nachvollziehbar sind. Dadurch, dass bei jedem Start die Datenbanken neu angelegt werden, werden dadurch [Updates der Datenbank auf die aktuelle Datenbank-Engine](https://jverein-forum.de/viewtopic.php?t=4525) automatisch durchgeführt.
+Der Export als Klartext hat zudem den Vorteil, dass Änderungen an den Datenbanken einfacher nachvollziehbar sind. Dadurch, dass bei jedem Start die Datenbanken neu angelegt werden, werden [Updates der Datenbank auf die aktuelle Datenbank-Engine](https://jverein-forum.de/viewtopic.php?t=4525) automatisch durchgeführt.
 
 ### Kann ich die Versionskontrolle auch ohne online verfügbares Git-Repository verwenden?
 
@@ -82,15 +82,20 @@ Dadurch, dass das Aktualisieren des Repositories und das Anlegen und Hochladen d
 
 Ja, es gibt diverse alternative Ansätze, Multiuser-Fähigkeit für jVerein umzusetzen. Diese sind in der jVerein-Dokumentation beschrieben: https://doku.jverein.de/allgemein/multiuser
 
-
-
-## Installation
-
 ### Voraussetzungen
 
-* Unterstützt wird die [Standardinstallation](https://doku.jverein.de/allgemein/installation) von Jameica, Hibiscus und jVerein mit mindestens Jameica 2.6.3
-  * Empfehlenswert ist die Installation von Jameica per [Hibiscus-Mashup](https://hibiscus-mashup.derrichter.de/), da diese Installation eine Java-Umgebung mitbringt
-  * Datenbank: H2 (Standard), nicht MySQL
+Unterstützt wird die [Standardinstallation](https://doku.jverein.de/allgemein/installation) von Jameica, Hibiscus und jVerein mit mindestens Jameica 2.6.3
+
+* Sehr empfehlenswert ist die Installation von Jameica per [Hibiscus-Mashup](https://hibiscus-mashup.derrichter.de/), da diese Installation eine Java-Umgebung mitbringt
+* Datenbank: H2 (Standard), nicht MySQL
+
+
+
+## Installieren
+
+### Windows
+
+
 
 
 
@@ -116,10 +121,14 @@ wget https://github.com/fkuersch/jverein-multiuser/releases/latest/download/jver
 unzip jverein-multiuser_linux.zip
 mkdir -p ~/bin
 mv jverein-multiuser ~/bin/
-source ~/.profile
+source ~/.profile  # oder Terminal-Fenster neu starten
 ```
 
-#### Remote-Repository einrichten
+
+
+## Einrichten
+
+### Remote-Repository einrichten
 
 Wenn die Daten auf dem lokalen Rechner verbleiben sollen, kann ein Git-Repository angelegt werden, das dann als Remote-Repository verwendet wird:
 
@@ -130,7 +139,7 @@ git init --bare .jverein-multiuser-remote-repo.git
 
 Wenn stattdessen ein (privates und gut geschütztes!) Online-Repository verwendet werden soll, dieses jetzt einrichten.
 
-#### jverein-multiuser konfigurieren
+### jverein-multiuser konfigurieren
 
 jverein-multiuser das erste Mal starten:
 
@@ -158,7 +167,7 @@ Achtung: Der Pfad muss hier absolut sein, "/home/BENUTZER" kann nicht mit "~" ab
 
 Speichern mit *Ctrl+O, Enter*. Beenden mit *Ctrl+X*.
 
-#### Jameica das erste Mal starten
+### Jameica das erste Mal starten
 
 jverein-multiuser erneut starten:
 
@@ -170,7 +179,7 @@ Mit *j, Enter* wird das lokale Repository eingerichtet.
 
 Wenn das erfolgreich war, *s, Enter* drücken, um Jameica zu starten.
 
-#### Option A: Neue Jameica-Installation einrichten
+### Option A: Neue Jameica-Installation einrichten
 
 Da Jameica mit einem neuen, leeren Arbeitsverzeichnis gestartet wurde, sind weder Plugins (z. B. Hibiscus, jVerein) noch Daten vorhanden. Diese nun installieren und einrichten. Bei der Installation der Plugins darauf achten, dass die Plugins im Jameica-Arbeitsverzeichnis gespeichert werden. So werden sie in die Versionskontrolle aufgenommen und allen Nutzern steht die gleiche Version zur Verfügung.
 
@@ -180,7 +189,7 @@ Danach Jameica schließen.
 
 Wenn Jameica per Hibsicus-Mashup installiert wurde (wie oben beschrieben), oder wenn eine bestehende Jamaica-Installation mitsamt Plugins und Daten mit jverein-multiuser gentutz werden soll, bietet es sich an, die Option B zu wählen:
 
-#### Option B: Vorhandenes Jameica-Arbeitsverzeichnis kopieren
+### Option B: Vorhandenes Jameica-Arbeitsverzeichnis kopieren
 
 Jameica wieder beenden und ein neues Terminal-Fenster öffnen.
 
@@ -198,13 +207,11 @@ cp -r ~/.jameica/ ~/.jverein-multiuser/repo/jameica
 
 Nun kann das 2. Terminal-Fenster wieder geschlossen werden.
 
-#### Erster Commit
+### Erster Commit
 
-Änderungen am Arbeitsverzeichnis können nach dem Schließen von Jameica als sogenannter Git-Commit in die Versionskontrolle aufgenommen werden. Wenn man Fehler in Jameica/jVerein macht, kann jverein-multiuser die aktuellen Änderungen verwerfen und zum letzten Commit zurückspringen.
+Nach dem Beenden von Jameica sollen die Änderungen gespeichert und hochgeladen werden.
 
-Deshalb empfiehlt es sich, im Arbeitsablauf in kleinen Schritten vorzugehen und die Änderungen jeweils direkt zu committen. Bei Mitgliedsbeitrags-Abrechnungen könnte das z. B. so aussehen: 1. Ein- und Austritte bearbeiten, 2. Kontoumsätze abrufen und buchen, 3. Mahnungen bearbeiten, 4. Abrechnung erstellen, prüfen und Pre-Notifications verschicken. Nach jedem Schritt Jameica beenden und in jverein-multiuser einen neuen Commit anlegen.
-
-Dazu in jverein-multiuser mit *f, Enter* bestätigen, dass der aktuelle Arbeitsschritt abgeschlossen ist.
+Dazu in jverein-multiuser mit *f, Enter* bestätigen, dass der aktuelle Arbeitsschritt abgeschlossen ist (dazu s. u.: Tipps).
 
 Dann mit *j, Enter* bestätigen, dass die Änderungen hochgeladen werden sollen.
 
@@ -242,16 +249,17 @@ rm ~/bin/jverein-multiuser
 
 
 
+## Tipps
 
+### Änderungen schrittweise durchführen
 
+Änderungen am Arbeitsverzeichnis können nach dem Schließen von Jameica als sogenannter Git-Commit in die Versionskontrolle aufgenommen werden. Wenn man Fehler in Jameica bzw. jVerein macht, kann jverein-multiuser die aktuellen Änderungen verwerfen und zum letzten Commit zurückspringen.
 
-## Known Issues
+Deshalb empfiehlt es sich, im Arbeitsablauf in kleinen Schritten vorzugehen und die Änderungen jeweils direkt zu committen. Bei Mitgliedsbeitrags-Abrechnungen könnte das z. B. so aussehen: 1. Ein- und Austritte bearbeiten, 2. Kontoumsätze abrufen und buchen, 3. Mahnungen bearbeiten, 4. Abrechnung erstellen, prüfen und Pre-Notifications verschicken. Nach jedem Schritt Jameica beenden und in jverein-multiuser einen neuen Commit anlegen.
 
-### SSH
+### Häufige Passwortabfragen für SSH-Key verhindern
 
-* reduce key password requests by using ssh-agent
+Wenn das Remote-Repository mit SSH und einem SSH-Key genutzt wird, fragt Git bei jeder Operation nach dem Passwort für den Key. Diese Abfragen können mit ssh-agent minimiert werden.
 
 https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
-
-### 
 
