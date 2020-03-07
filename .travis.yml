@@ -63,6 +63,7 @@ jobs:
       before_deploy:
         - pyinstaller "app.spec"
         - zip --junk-paths dist/jverein-multiuser_linux.zip dist/jverein-multiuser
+        - grep "VERSION = " jvereinmultiuser/app.py|sed -n 's/VERSION = "\(.*\)"/\1/p' > dist/VERSION
         - ls dist
 deploy:
   provider: releases
@@ -71,6 +72,7 @@ deploy:
   file:
     - dist/*.zip
     - dist/*.exe
+    - dist/VERSION
   skip_cleanup: true
   draft: true
   api_key:
