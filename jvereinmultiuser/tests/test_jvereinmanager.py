@@ -6,11 +6,12 @@ import subprocess
 from unittest import TestCase
 from tempfile import TemporaryDirectory
 
-from jvereinmultiuser.jvereinmanager import JVereinManager, JameicaVersionDiffersError
+from jvereinmultiuser.jvereinmanager import (
+    JVereinManager, JameicaVersionDiffersError, DEFAULT_JAVA_PATH, DEFAULT_H2_DIR)
 
 
-JAVA_PATH = "/Applications/jameica.app/jre-macos64/Contents/Home/bin/java"
-H2_PATH = "/Applications/jameica.app/lib/h2/h2-1.4.199.jar"
+JAVA_PATH = DEFAULT_JAVA_PATH
+H2_PATH = JVereinManager._get_h2_jar_path(DEFAULT_H2_DIR)
 JAMEICA_VERSION = "2.8.6"
 
 EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\

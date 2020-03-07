@@ -13,12 +13,13 @@ from typing import Optional
 from getpass import getpass
 from jvereinmultiuser.gitlocker import GitLocker, GitError, IsLockedError
 from jvereinmultiuser.jvereinmanager import (
-    JVereinManager, JameicaVersionDiffersError, DecryptionError)
+    JVereinManager, JameicaVersionDiffersError, DecryptionError,
+    DEFAULT_JAMEICA_EXEC_PATH, DEFAULT_PLUGIN_XML_PATH, DEFAULT_JAVA_PATH, DEFAULT_H2_DIR)
 
 
 VERSION = "0.1"
 
-_DEFAULT_USER_CONFIG = textwrap.dedent("""\
+_DEFAULT_USER_CONFIG = textwrap.dedent(f"""\
     [Author]
     #name = Max Mustermann
     #email = maxmustermann@example.org
@@ -26,6 +27,14 @@ _DEFAULT_USER_CONFIG = textwrap.dedent("""\
     
     [Repository]
     #remote = ssh://user@git.example.org:~/jverein.git
+    
+    # Wenn Jameica mit Hibiscus-Mashup installiert wurde,
+    # kann Folgendes ignoriert werden:
+    #[Paths]
+    #jameica_exec = {DEFAULT_JAMEICA_EXEC_PATH}
+    #plugin_xml = {DEFAULT_PLUGIN_XML_PATH}
+    #java = {DEFAULT_JAVA_PATH}
+    #h2_dir = {DEFAULT_H2_DIR}
 """)
 
 if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
@@ -99,6 +108,11 @@ class App:
         self._author_computer = self._user_config["Author"]["computer"]
         self._remote_repo = self._user_config["Repository"]["remote"]
 
+        self._path_jameica_exec = self._user_config.get("Paths", "jameica_exec", fallback=None)
+        self._path_plugin_xml = self._user_config.get("Paths", "plugin_xml", fallback=None)
+        self._path_java = self._user_config.get("Paths", "java", fallback=None)
+        self._path_h2_dir = self._user_config.get("Paths", "h2_dir", fallback=None)
+
     def _read_jameica_config_file(self):
         try:
             with open(self._jameica_config_path, "r") as f:
@@ -164,7 +178,11 @@ class App:
 
             self._jverein_manager = JVereinManager(
                 local_repo_dir=self._local_repo_dir,
-                user_properties=self._jameica_user_properties
+                user_properties=self._jameica_user_properties,
+                jameica_exec_path=self._path_jameica_exec,
+                plugin_xml_path=self._path_plugin_xml,
+                java_path=self._path_java,
+                h2_jar_dir=self._path_h2_dir
             )
 
             self._clone_repo_if_necessarry()

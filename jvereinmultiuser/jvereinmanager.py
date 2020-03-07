@@ -117,6 +117,18 @@ _DEFAULT_PATHS = {
     }
 }
 
+platform = "linux"
+if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
+    platform = "windows"
+elif sys.platform.startswith("darwin"):
+    platform = "macos"
+
+
+DEFAULT_JAMEICA_EXEC_PATH = _DEFAULT_PATHS[platform]["JAMEICA_EXEC"]
+DEFAULT_PLUGIN_XML_PATH = _DEFAULT_PATHS[platform]["PLUGIN_XML"]
+DEFAULT_JAVA_PATH = _DEFAULT_PATHS[platform]["JAVA"]
+DEFAULT_H2_DIR = _DEFAULT_PATHS[platform]["H2_DIR"]
+
 
 class JameicaVersionDiffersError(Exception):
     """ The current Jameica version is different than the expected one """
@@ -139,27 +151,22 @@ class JVereinManager:
                  jameica_exec_path: Optional[str] = None,
                  plugin_xml_path: Optional[str] = None,
                  java_path: Optional[str] = None,
-                 h2_jar_path: Optional[str] = None):
+                 h2_jar_dir: Optional[str] = None):
 
         self._logger = logging.getLogger(__name__)
 
         self._local_repo_dir = os.path.expanduser(local_repo_dir)
         self.user_properties = user_properties if user_properties else {}
 
-        platform = "linux"
-        if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
-            platform = "windows"
-        elif sys.platform.startswith("darwin"):
-            platform = "macos"
-
         self._jameica_path = (jameica_exec_path if jameica_exec_path
-                              else _DEFAULT_PATHS[platform]["JAMEICA_EXEC"])
+                              else DEFAULT_JAMEICA_EXEC_PATH)
         self._plugin_xml_path = (plugin_xml_path if plugin_xml_path
-                                 else _DEFAULT_PATHS[platform]["PLUGIN_XML"])
+                                 else DEFAULT_PLUGIN_XML_PATH)
         self._java_path = (java_path if java_path
-                           else _DEFAULT_PATHS[platform]["JAVA"])
-        self._h2_jar_path = (h2_jar_path if h2_jar_path
-                             else self._get_h2_jar_path(_DEFAULT_PATHS[platform]["H2_DIR"]))
+                           else DEFAULT_JAVA_PATH)
+        self._h2_jar_path = self._get_h2_jar_path(
+            h2_jar_dir if h2_jar_dir
+            else DEFAULT_H2_DIR)
 
         self._jameica_dir = os.path.join(self._local_repo_dir, "jameica")
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
@@ -170,7 +177,8 @@ class JVereinManager:
         self._config = configparser.ConfigParser()
         self._read_config()
 
-    def _get_h2_jar_path(self, h2_dir: str) -> str:
+    @staticmethod
+    def _get_h2_jar_path(h2_dir: str) -> str:
         # reversed: if there are multiple .jar files, we use the newest one
         for filename in sorted(os.listdir(h2_dir), reverse=True):
             if filename.startswith("h2-") and filename.endswith(".jar"):
