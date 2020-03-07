@@ -102,18 +102,14 @@ class GitLocker:
         if ignore_err and ignore_err in stderr_str:
             ret = 0
 
-        if ret != 0:
-            self._logger.error(f"RETURNCODE: {proc.returncode}")
-            self._logger.error(f"STDOUT: {stdout_str}")
-            self._logger.error(f"STDERR: {stderr_str}")
-        else:
-            self._logger.info(f"RETURNCODE: {proc.returncode}")
-            self._logger.info(f"STDOUT: {stdout_str}")
-            self._logger.info(f"STDERR: {stderr_str}")
+        log_level = logging.INFO if ret == 0 else logging.ERROR
+        self._logger.log(log_level, f"RETURNCODE: {proc.returncode}")
+        self._logger.log(log_level, f"STDOUT: {stdout_str}")
+        self._logger.log(log_level, f"STDERR: {stderr_str}")
 
         return ret, stdout_str, stderr_str
 
-    def _git_set_author(self):
+    def _git_set_author_and_remote(self):
         ret = self._execute_git(
             ["config", "--local", "user.name", self._author_name])[0]
         if ret != 0:
@@ -124,9 +120,11 @@ class GitLocker:
         if ret != 0:
             raise GitError("Konnte die Git-E-Mail-Adresse nicht setzen!")
 
+        self._execute_git(["remote", "set-url", "origin", self._remote_repo])
+
     def stage_and_commit(self, commit_message: str):
-        self._git_set_author()
-        subprocess.run([self._git_cmd, "-C", self._local_repo, "status"], check=True)
+        self._git_set_author_and_remote()
+        self._execute_git(["status"])
 
         ret = self._execute_git(["add", "--all"])[0]
         if ret != 0:
@@ -225,6 +223,7 @@ class GitLocker:
             self.stage_and_commit("initial commit")
 
     def pull(self):
+        self._git_set_author_and_remote()
         ret = self._execute_git(["pull"])[0]
         if ret != 0:
             raise GitError("Konnte nicht updaten. Bitte Log prüfen.")

@@ -203,7 +203,7 @@ class JVereinManager:
                 with open(full_config_path, "w") as f:
                     f.write(content)
             except FileNotFoundError:
-                self._logger.warning(f"Unable to set user properties (file not found): {full_config_path}")
+                self._logger.info(f"Unable to set user properties (file not found): {full_config_path}")
                 continue
 
     def _reset_user_properties_in_properties_files(self):
@@ -385,14 +385,10 @@ class JVereinManager:
         if ignore_err and ignore_err in stderr_str:
             ret = 0
 
-        if ret != 0:
-            self._logger.error(f"RETURNCODE: {proc.returncode}")
-            self._logger.error(f"STDOUT: {stdout_str}")
-            self._logger.error(f"STDERR: {stderr_str}")
-        else:
-            self._logger.info(f"RETURNCODE: {proc.returncode}")
-            self._logger.info(f"STDOUT: {stdout_str}")
-            self._logger.info(f"STDERR: {stderr_str}")
+        log_level = logging.INFO if ret == 0 else logging.ERROR
+        self._logger.log(log_level, f"RETURNCODE: {proc.returncode}")
+        self._logger.log(log_level, f"STDOUT: {stdout_str}")
+        self._logger.log(log_level, f"STDERR: {stderr_str}")
 
         return ret, stdout_str, stderr_str
 
