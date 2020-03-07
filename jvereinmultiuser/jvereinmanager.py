@@ -110,10 +110,10 @@ _DEFAULT_PATHS = {
         "H2_DIR": "/opt/jameica/lib/h2",
     },
     "macos": {
-        "JAMEICA_EXEC": "/Applications/jameica.app/jameica-macos64.sh",
-        "PLUGIN_XML": "/Applications/jameica.app/plugin.xml",
-        "JAVA": "/Applications/jameica.app/jre-macos64/Contents/Home/bin/java",
-        "H2_DIR": "/Applications/jameica.app/lib/h2",
+        "JAMEICA_EXEC": "/Applications/Jameica.app/jameica-macos64.sh",
+        "PLUGIN_XML": "/Applications/Jameica.app/plugin.xml",
+        "JAVA": "/Applications/Jameica.app/javaruntime/bin/java",
+        "H2_DIR": "/Applications/Jameica.app/lib/h2",
     }
 }
 
