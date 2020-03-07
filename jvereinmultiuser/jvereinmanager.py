@@ -374,14 +374,18 @@ class JVereinManager:
 
         os.unlink(full_db_path)
 
-    def _execute_subprocess(self, args: List[str], cwd=None):
+    def _execute_subprocess(self, args: List[str], cwd: Optional[str] = None, ignore_err: Optional[str] = None):
         self._logger.info(f"executing: '{' '.join(args)}'")
 
         proc = subprocess.run(args, capture_output=True, cwd=cwd)
         stdout_str = proc.stdout.decode()
         stderr_str = proc.stderr.decode()
 
-        if proc.returncode != 0:
+        ret = proc.returncode
+        if ignore_err and ignore_err in stderr_str:
+            ret = 0
+
+        if ret != 0:
             self._logger.error(f"RETURNCODE: {proc.returncode}")
             self._logger.error(f"STDOUT: {stdout_str}")
             self._logger.error(f"STDERR: {stderr_str}")
@@ -390,7 +394,7 @@ class JVereinManager:
             self._logger.info(f"STDOUT: {stdout_str}")
             self._logger.info(f"STDERR: {stderr_str}")
 
-        return proc.returncode, stdout_str, stderr_str
+        return ret, stdout_str, stderr_str
 
     def _dump_and_delete_all_databases(self):
         for db, options, username, passphrase in self._databases:
@@ -471,6 +475,7 @@ class JVereinManager:
                 pass
             jverein_db_path = os.path.join(
                 self._jameica_dir, "jverein", "h2db", "jverein")
+            mitglied_err_str = "Table \"MITGLIED\" not found"
             ret, stdout, stderr = self._execute_subprocess(
                 [
                     self._java_path,
@@ -481,11 +486,15 @@ class JVereinManager:
                     "-password", "jverein",
                     "-script", temp_file.name
                 ],
-                cwd=dump_dir
+                cwd=dump_dir,
+                ignore_err=mitglied_err_str
             )
 
             if ret != 0:
-                raise Exception("Konnte E-Mails nicht exportieren.")
+                self._logger.error("Konnte E-Mails nicht exportieren.")
+
+            if mitglied_err_str in stderr:
+                self._logger.warning("Konnte E-Mails nicht exportieren: Mitglieder-Tabelle existiert nicht")
         except Exception as e:
             raise e
         finally:
