@@ -93,13 +93,81 @@ Unterstützt wird die [Standardinstallation](https://doku.jverein.de/allgemein/i
 
 ## Installieren
 
-### Windows
+### Windows 10
+
+#### Git installieren
+
+Git herunterladen: https://git-scm.com/download/win
+
+Installer ausführen.
+
+Windows-Explorer-Integration wird nicht benötigt.
+
+nano ist als Standard-Editor für Anfänger empfehlenswert.
+
+#### Jameica installieren
+
+Hibiscus-Mashup (Windows 64-Bit) herunterladen: https://hibiscus-mashup.derrichter.de/index.php/download
+
+Installer ausführen.
+
+Jameica am Ende der Installation nicht starten.
+
+#### jverein-multiuser installieren
+
+jverein-multiuser herunterladen: https://github.com/fkuersch/jverein-multiuser/releases/latest/download/jverein-multiuser.exe
+
+Git bash öffnen
+
+```
+mkdir -p bin
+mv Downloads/jverein-multiuser.exe bin/
+```
 
 
 
+### macOS 10.14
+
+#### Git installieren
+
+Terminal öffnen.
+
+```
+git --version
+```
+
+Installations-Assistenten folgen.
+
+#### Jameica installieren
+
+Hibiscus-Mashup (macOS 10.10+) herunterladen: https://hibiscus-mashup.derrichter.de/index.php/download
+
+DMG öffnen und Installer ausführen (ggf. per Rechtsklick, Öffnen).
+
+#### jverein-multiuser installieren
+
+Terminal öffnen
+
+```
+# jverein-multiuser herunterladen
+cd Downloads
+curl -LO https://github.com/fkuersch/jverein-multiuser/releases/latest/download/jverein-multiuser_macos.zip
+
+# entpacken
+unzip jverein-multiuser_macos.zip
+
+# nach ~/bin verschieben
+mkdir -p ~/bin
+mv jverein-multiuser ~/bin/
+
+# ~/bin in $PATH aufnehmen
+echo 'export PATH="$PATH:~/bin"' >> ~/.profile
+source ~/.profile  # oder Terminal neu starten
+```
 
 
-### Ubuntu (19.10)
+
+### Ubuntu 19.10
 
 #### Installation von Jameica, Git und jverein-multiuser
 
