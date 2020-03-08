@@ -6,6 +6,7 @@ import json
 import pkgutil
 import logging
 import argparse
+import requests
 import textwrap
 import traceback
 import configparser
@@ -18,6 +19,9 @@ from jvereinmultiuser.jvereinmanager import (
 
 
 VERSION = "0.1"
+
+_VERSION_URL = "https://github.com/fkuersch/jverein-multiuser/releases/latest/download/VERSION"
+_RELEASE_URL = "https://github.com/fkuersch/jverein-multiuser/releases/latest"
 
 _DEFAULT_USER_CONFIG = textwrap.dedent(f"""\
     [Author]
@@ -56,8 +60,9 @@ class CancelAppException(Exception):
 
 class App:
 
-    def __init__(self, working_dir: str):
+    def __init__(self, working_dir: str, check_for_updates: bool = True):
         self._working_dir = working_dir
+        self._allow_check_for_updates = check_for_updates
         self._user_config_path = os.path.join(self._working_dir, "user_config.ini")
         self._jameica_config_path = os.path.join(self._working_dir, "jameica_config.json")
         self._local_repo_dir = os.path.join(self._working_dir, "repo")
@@ -72,6 +77,22 @@ class App:
 
         self._gitlocker: Optional[GitLocker] = None
         self._jverein_manager: Optional[JVereinManager] = None
+
+    def _check_for_updates(self):
+        if not self._allow_check_for_updates:
+            return
+        print("Suche nach Updates")
+        try:
+            r = requests.get(_VERSION_URL, timeout=5.0)
+            update_version = r.text.strip()
+            if update_version != VERSION:
+                print(f"Es ist ein Update für jverein-multiuser verfügbar: {update_version}")
+                print(f"Installiert ist: {VERSION}")
+                print(f"Jetzt herunterladen: {_RELEASE_URL}")
+            else:
+                print("jverein-multiuser ist auf dem aktuellen Stand")
+        except Exception as e:
+            print(f"Suche nach Updates fehlgeschlagen: {e}")
 
     def _setup_working_dir(self):
         if not os.path.exists(self._working_dir):
@@ -156,6 +177,7 @@ class App:
 
     def run(self):
         try:
+            self._check_for_updates()
             self._setup_working_dir()
             self._read_user_config_file()
             self._read_jameica_config_file()
@@ -460,11 +482,14 @@ def run():
         prog="jverein-multiuser"
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
-    parser.add_argument("--working-dir",
+    parser.add_argument("-d", "--working-dir",
                         dest="working_dir",
                         default=default_working_dir,
-                        help=f"Arbeitsverzeichnis für Repository und Konfiguration (default: {default_working_dir}")
-    parser.add_argument('--verbose', '-v', dest="verbose", action='count', default=0)
+                        help=f"Arbeitsverzeichnis für Repository und Konfiguration (default: {default_working_dir})")
+    parser.add_argument("-n", "--no-update", dest="check_for_updates", action="store_false",
+                        help="Nicht nach Updates von jverein-multiuser suchen")
+    parser.add_argument('-v', '--verbose', dest="verbose", action='count', default=0,
+                        help="Log-Level; -v: INFO, -vv: DEBUG")
     args = parser.parse_args()
 
     if args.verbose == 0:
@@ -479,7 +504,8 @@ def run():
                         level=log_level)
 
     try:
-        app = App(args.working_dir)
+        app = App(working_dir=args.working_dir,
+                  check_for_updates=args.check_for_updates)
         app.run()
     except CancelAppException:
         print("Abbruch.")
