@@ -7,7 +7,6 @@ import logging
 import textwrap
 import traceback
 import subprocess
-import configparser
 from time import sleep
 from Crypto.PublicKey import RSA
 import xml.etree.ElementTree as ET
@@ -170,12 +169,12 @@ class JVereinManager:
 
         self._jameica_dir = os.path.join(self._local_repo_dir, "jameica")
         self._dump_dir = os.path.join(self._local_repo_dir, "dump")
-        self._config_path = os.path.join(self._local_repo_dir, "config.ini")
         self._keystore_path = os.path.join(self._jameica_dir, "cfg", "jameica.keystore")
 
         self._databases = []
-        self._config = configparser.ConfigParser()
-        self._read_config()
+
+        self.expected_jameica_version = None
+        self._current_jameica_version = None
 
     @staticmethod
     def _get_h2_jar_path(h2_dir: str) -> str:
@@ -504,6 +503,12 @@ class JVereinManager:
         finally:
             os.unlink(temp_file.name)
 
+    @property
+    def current_jameica_version(self):
+        if self._current_jameica_version is None:
+            self._current_jameica_version = self._get_jameica_version()
+        return self._current_jameica_version
+
     def _get_jameica_version(self) -> str:
         tree = ET.parse(self._plugin_xml_path)
         root = tree.getroot()
@@ -511,37 +516,23 @@ class JVereinManager:
         self._logger.debug(f"current jameica version: {version}")
         return version
 
-    def _read_config(self):
-        self._config.read(self._config_path)
+    def _check_expected_jameica_version(self):
+        if not self.expected_jameica_version:
+            self._logger.info(f"Ignoring Jameica version check")
+            self.expected_jameica_version = self.current_jameica_version
+            return
 
-    def _write_config(self):
-        with open(self._config_path, "w") as f:
-            self._config.write(f)
-
-    def update_expected_jameica_version(self):
-        self._config["Jameica"] = {
-            "expectedversion": self._get_jameica_version()
-        }
-        self._write_config()
-
-    def _check_jameica_version(self):
-        current = self._get_jameica_version()
-        try:
-            expected = self._config["Jameica"]["expectedversion"]
-        except KeyError:
-            self._logger.info(f"First start - setting expected Jameica version to '{current}'.")
-            self.update_expected_jameica_version()
-            expected = current
-
-        if expected != current:
-            raise JameicaVersionDiffersError(expected_version=expected, current_version=current)
+        if self.expected_jameica_version != self.current_jameica_version:
+            raise JameicaVersionDiffersError(
+                expected_version=self.expected_jameica_version,
+                current_version=self.current_jameica_version)
 
     def setup(self, master_password: str):
         """
         Raises:
             JameicaVersionDiffersError: if the current Jameica version differs from the expected one
         """
-        self._check_jameica_version()
+        self._check_expected_jameica_version()
         self._insert_user_properties_into_properties_files()
         self._register_all_databases(master_password)
         self._restore_all_databases()
@@ -584,7 +575,6 @@ class JVereinManager:
         sleep(1)
 
     def teardown(self):
-        self._write_config()
         self._reset_user_properties_in_properties_files()
         self._export_emails()
         self._dump_and_delete_all_databases()

@@ -66,6 +66,7 @@ class App:
         self._user_config_path = os.path.join(self._working_dir, "user_config.ini")
         self._jameica_config_path = os.path.join(self._working_dir, "jameica_config.json")
         self._local_repo_dir = os.path.join(self._working_dir, "repo")
+        self._repo_config_path = os.path.join(self._local_repo_dir, "config.ini")
 
         self._user_config = configparser.ConfigParser()
         self._author_name = ""
@@ -77,6 +78,8 @@ class App:
 
         self._gitlocker: Optional[GitLocker] = None
         self._jverein_manager: Optional[JVereinManager] = None
+
+        self._repo_config = configparser.ConfigParser()
 
     def _check_for_updates(self):
         if not self._allow_check_for_updates:
@@ -93,6 +96,37 @@ class App:
                 print("jverein-multiuser ist auf dem aktuellen Stand")
         except Exception as e:
             print(f"Suche nach Updates fehlgeschlagen: {e}")
+
+    def _check_expected_jvereinmultiuser_version(self):
+        if not self._expected_jvereinmultiuser_version:
+            print("Repo setzt keine bestimmte Version von jverein-multiuser voraus.")
+            return
+
+        if self._expected_jvereinmultiuser_version == VERSION:
+            return
+
+        print("Die Version von jverein-multiuser hat sich geändert!")
+        print(f"Erwartet:           {self._expected_jvereinmultiuser_version}")
+        print(f"Auf deinem System:  {VERSION}")
+        print("")
+        print("Wenn du ein Update von jverein-multiuser durchgeführt hast, kannst du")
+        print("das Update jetzt bestätigen. Die anderen Nutzer müssen dann")
+        print("ebenfalls ein Update durchführen.")
+        print("")
+        print("Du hast folgende Optionen:")
+        print("")
+        print("   (u) Update bestätigen")
+        print(f"          andere Nutzer müssen auf deine Version updaten ({VERSION})")
+        print("   (q) Abbruch")
+        print("          und selbst Update durchführen")
+
+        response = self._user_input(["u", "q"])
+        if response == "u":
+            self._expected_jvereinmultiuser_version = VERSION
+            # don't write config file since we don't have the lock (yet)
+            # the config file will be written before the next commit
+        else:
+            raise CancelAppException()
 
     def _setup_working_dir(self):
         if not os.path.exists(self._working_dir):
@@ -133,6 +167,36 @@ class App:
         self._path_plugin_xml = self._user_config.get("Paths", "plugin_xml", fallback=None)
         self._path_java = self._user_config.get("Paths", "java", fallback=None)
         self._path_h2_dir = self._user_config.get("Paths", "h2_dir", fallback=None)
+
+    def _read_repo_config_file(self):
+        self._repo_config.read(self._repo_config_path)
+
+    @property
+    def _expected_jameica_version(self):
+        return self._repo_config.get("Jameica", "expectedversion", fallback=None)
+
+    @_expected_jameica_version.setter
+    def _expected_jameica_version(self, value):
+        self._repo_config.set("Jameica", "expectedversion", value)
+
+    @property
+    def _expected_jvereinmultiuser_version(self):
+        return self._repo_config.get("JvereinMultiuser", "expectedversion", fallback=None)
+
+    @_expected_jvereinmultiuser_version.setter
+    def _expected_jvereinmultiuser_version(self, value):
+        if not self._repo_config.has_section("JvereinMultiuser"):
+            self._repo_config.add_section("JvereinMultiuser")
+        self._repo_config.set("JvereinMultiuser", "expectedversion", value)
+
+    def _write_repo_config_file(self):
+        if (not self._expected_jameica_version
+                and self._jverein_manager and self._jverein_manager.current_jameica_version):
+            self._expected_jameica_version = self._jverein_manager.current_jameica_version
+        if not self._expected_jvereinmultiuser_version:
+            self._expected_jvereinmultiuser_version = VERSION
+        with open(self._repo_config_path, "w") as f:
+            self._repo_config.write(f)
 
     def _read_jameica_config_file(self):
         try:
@@ -209,6 +273,11 @@ class App:
 
             self._clone_repo_if_necessarry()
 
+            # now, the repo exists
+            self._read_repo_config_file()
+            self._check_expected_jvereinmultiuser_version()
+            self._jverein_manager.expected_jameica_version = self._expected_jameica_version
+
             locked_by_me = self._gitlocker.is_locked_by_me()
             clean = self._gitlocker.is_synced_with_remote_repo()
             if clean and not locked_by_me:
@@ -255,7 +324,7 @@ class App:
         self._create_gitignore_if_necessarry()
 
     def _upload_changes(self):
-        commit_message = None
+        self._write_repo_config_file()
 
         if self._gitlocker.need_to_commit():
             commit_message = ""
@@ -300,13 +369,16 @@ class App:
         print("Du hast folgende Optionen:")
         print("")
         print("   (u) Update bestätigen")
-        print("          und andere Nutzer zum Updaten auffordern")
+        print(f"          andere Nutzer müssen auf deine Version updaten ({current_version})")
         print("   (q) Abbruch")
         print("          und selbst Update durchführen")
 
         response = self._user_input(["u", "q"])
         if response == "u":
-            self._jverein_manager.update_expected_jameica_version()
+            self._expected_jameica_version = current_version
+            self._jverein_manager.expected_jameica_version = current_version
+            self._write_repo_config_file()
+            # we can write the config file: when jameica needs to be started, we own the lock
         raise CancelAppException()
 
     def _ask_for_master_password(self) -> str:

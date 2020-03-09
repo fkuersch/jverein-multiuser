@@ -347,40 +347,16 @@ class TestJVereinManager(TestCase):
             repo_dir = os.path.join(tmp_dir, "repo_dir")
             shutil.copytree(src_dir, repo_dir)
 
-            config_path = os.path.join(repo_dir, "config.ini")
-            self.assertFalse(os.path.exists(config_path))
+            j = JVereinManager(repo_dir)
+            self.assertEqual(JAMEICA_VERSION, j.current_jameica_version)
+            self.assertIsNone(j.expected_jameica_version)
+            j._check_expected_jameica_version()
+            self.assertEqual(JAMEICA_VERSION, j.current_jameica_version)
+            self.assertEqual(JAMEICA_VERSION, j.expected_jameica_version)
+            j._check_expected_jameica_version()
 
             j = JVereinManager(repo_dir)
-            j._check_jameica_version()
-
-            expected_content = textwrap.dedent(f"""\
-            [Jameica]
-            expectedversion = {JAMEICA_VERSION}
-            
-            """)
-
-            # first start should crate an ini file
-            self.assertTrue(os.path.exists(config_path))
-            with open(config_path, "r") as f:
-                content = f.read()
-                self.assertEqual(expected_content, content)
-
-            previous_version_config = textwrap.dedent(f"""\
-            [Jameica]
-            expectedversion = 2.6.1
-            
-            """)
-            with open(config_path, "w") as f:
-                f.write(previous_version_config)
-
-            j = JVereinManager(repo_dir)
-            self.assertRaises(JameicaVersionDiffersError, j._check_jameica_version)
-
-            with open(config_path, "r") as f:
-                content = f.read()
-                self.assertEqual(previous_version_config, content)
-
-            j.update_expected_jameica_version()
-            with open(config_path, "r") as f:
-                content = f.read()
-                self.assertEqual(expected_content, content)
+            j.expected_jameica_version = "1.2.3"
+            self.assertRaises(JameicaVersionDiffersError, j._check_expected_jameica_version)
+            j.expected_jameica_version = JAMEICA_VERSION
+            j._check_expected_jameica_version()
