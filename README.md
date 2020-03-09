@@ -1,7 +1,3 @@
-TODO: this is still work in progress. please hold the line...
-
-
-
 # jverein-multiuser: jVerein mit mehreren Benutzern verwenden
 
 jverein-multiuser bietet Multiuser-Support für jVerein mit beliebig vielen Nutzern. Dafür werden die gesamten Jameica-Daten mit dem Versionskontrollsystem Git verwaltet und in einem Online-Repository gespeichert.
