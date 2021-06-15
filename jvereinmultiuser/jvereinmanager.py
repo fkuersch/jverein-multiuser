@@ -435,41 +435,29 @@ class JVereinManager:
         for db, options, username, passphrase in self._databases:
             self._restore_h2_database(db, options, username, passphrase)
 
-    def _export_emails(self):
-        """
-        Export email addresses of all current members to dump/mitglieder-emails.csv
+    def _write_temporary_file(self, content: str) -> str:
+        with NamedTemporaryFile(delete=False) as temp_file:
+            """
+            The H2 script needs to re-open the file to execute it, but: 
 
-        Made for use with mailman's sync_members
-        http://manpages.org/sync_members/8
-        """
+            Whether the name can be used to open the file a second time, 
+            while the named temporary file is still open,  varies across 
+            platforms (it can be so used on Unix; it cannot on Windows NT or later).
+            https://docs.python.org/3/library/tempfile.html
 
+            -> To maintain compatibility with Windows, we need to delete the file
+            manually in the 'finally' block.
+            """
+
+            # http://www.h2database.com/html/functions.html#csvwrite
+            # http://www.h2database.com/html/grammar.html#csv_options
+            temp_file.write(content.encode())
+        return temp_file.name
+
+    def _execute_sql(self, sql_statement: str, table_name: str, error_str: str):
+        temp_file_path = None
         try:
-            with NamedTemporaryFile(delete=False) as temp_file:
-                """
-                The H2 script needs to re-open the file to execute it, but: 
-                
-                Whether the name can be used to open the file a second time, 
-                while the named temporary file is still open,  varies across 
-                platforms (it can be so used on Unix; it cannot on Windows NT or later).
-                https://docs.python.org/3/library/tempfile.html
-                
-                -> To maintain compatibility with Windows, we need to delete the file
-                manually in the 'finally' block.
-                """
-
-                # http://www.h2database.com/html/functions.html#csvwrite
-                # http://www.h2database.com/html/grammar.html#csv_options
-                temp_file.write(textwrap.dedent(r"""
-                    CALL CSVWRITE(
-                        'mitglieder-emails.csv', 
-                        'SELECT LOWER(email) FROM mitglied 
-                            WHERE eintritt <= CURDATE() 
-                                AND (austritt IS NULL OR austritt > CURDATE()) 
-                            ORDER BY LOWER(email)', 
-                        STRINGDECODE(
-                            'charset=UTF-8 escape=\" fieldDelimiter= lineSeparator=\n null= writeColumnHeader=false')
-                    );
-                """.strip()).encode())
+            temp_file_path = self._write_temporary_file(content=sql_statement)
 
             dump_dir = os.path.join(self._local_repo_dir, "dump")
             try:
@@ -478,7 +466,7 @@ class JVereinManager:
                 pass
             jverein_db_path = os.path.join(
                 self._jameica_dir, "jverein", "h2db", "jverein")
-            mitglied_err_str = "Table \"MITGLIED\" not found"
+            table_err_str = f"Table \"{table_name.upper()}\" not found"
             ret, stdout, stderr = self._execute_subprocess(
                 [
                     self._java_path,
@@ -487,21 +475,68 @@ class JVereinManager:
                     "-url", f"jdbc:h2:{jverein_db_path}",
                     "-user", "jverein",
                     "-password", "jverein",
-                    "-script", temp_file.name
+                    "-script", temp_file_path
                 ],
                 cwd=dump_dir,
-                ignore_err=mitglied_err_str
+                ignore_err=table_err_str
             )
 
             if ret != 0:
-                self._logger.error("Konnte E-Mails nicht exportieren.")
+                self._logger.error(error_str)
 
-            if mitglied_err_str in stderr:
-                self._logger.warning("Konnte E-Mails nicht exportieren: Mitglieder-Tabelle existiert nicht")
+            if table_err_str in stderr:
+                self._logger.warning(f"{error_str}: Mitglieder-Tabelle existiert nicht")
         except Exception as e:
             raise e
         finally:
-            os.unlink(temp_file.name)
+            os.unlink(temp_file_path)
+
+    def _export_emails(self):
+        """
+        Export email addresses of all current members to dump/mitglieder-emails.csv
+
+        Made for use with mailman's sync_members
+        http://manpages.org/sync_members/8
+        """
+
+        sql_statement = textwrap.dedent(r"""
+            CALL CSVWRITE(
+                'mitglieder-emails.csv', 
+                'SELECT LOWER(email) FROM mitglied 
+                    WHERE eintritt <= CURDATE() 
+                        AND (austritt IS NULL OR austritt >= CURDATE())
+                    ORDER BY LOWER(email)', 
+                STRINGDECODE(
+                    'charset=UTF-8 escape=\" fieldDelimiter= lineSeparator=\n null= writeColumnHeader=false')
+            );
+        """.strip())
+
+        self._execute_sql(sql_statement=sql_statement,
+                          table_name="mitglied",
+                          error_str="Konnte E-Mails nicht exportieren")
+
+    def _export_emails_with_expiry_date(self):
+        """
+        Export email addresses and resignation date of all current members to dump/mitglieder-emails-austritt.csv
+
+        Made for use with custom sync members script
+        """
+
+        sql_statement = textwrap.dedent(r"""
+            CALL CSVWRITE(
+                'mitglieder-emails-austritt.csv', 
+                'SELECT LOWER(email), austritt FROM mitglied 
+                    WHERE eintritt <= CURDATE() 
+                        AND (austritt IS NULL OR austritt >= CURDATE()) 
+                    ORDER BY LOWER(email)', 
+                STRINGDECODE(
+                    'charset=UTF-8 lineSeparator=\n null= writeColumnHeader=false')
+            );
+        """.strip())
+
+        self._execute_sql(sql_statement=sql_statement,
+                          table_name="mitglied",
+                          error_str="Konnte E-Mails und Austrittsdaten nicht exportieren")
 
     @property
     def current_jameica_version(self):
@@ -577,4 +612,5 @@ class JVereinManager:
     def teardown(self):
         self._reset_user_properties_in_properties_files()
         self._export_emails()
+        self._export_emails_with_expiry_date()
         self._dump_and_delete_all_databases()

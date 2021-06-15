@@ -3,6 +3,7 @@ import shutil
 import logging
 import textwrap
 import subprocess
+from datetime import date, timedelta
 from unittest import TestCase
 from tempfile import TemporaryDirectory
 
@@ -12,9 +13,9 @@ from jvereinmultiuser.jvereinmanager import (
 
 JAVA_PATH = DEFAULT_JAVA_PATH
 H2_PATH = JVereinManager._get_h2_jar_path(DEFAULT_H2_DIR)
-JAMEICA_VERSION = "2.8.6"
+JAMEICA_VERSION = "2.10.0"
 
-EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\
+EXAMPLE_JVEREIN_DATABASE = textwrap.dedent(f"""\
     ;
     CREATE USER IF NOT EXISTS "JVEREIN" SALT 'b639d0d2ad3657a9' HASH '12091ed2f3d5c62f8b4297da36ca4fad7db9ff51a6844da8b95bddd0fb4e2ad5' ADMIN;
     CREATE CACHED TABLE "PUBLIC"."MITGLIED"(
@@ -70,10 +71,12 @@ EXAMPLE_JVEREIN_DATABASE = textwrap.dedent("""\
         "ZAHLUNGSTERMIN" INTEGER
     );         
     ALTER TABLE "PUBLIC"."MITGLIED" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_E" PRIMARY KEY("ID");      
-    -- 2 +/- SELECT COUNT(*) FROM PUBLIC.MITGLIED; 
+    -- 4 +/- SELECT COUNT(*) FROM PUBLIC.MITGLIED; 
     INSERT INTO "PUBLIC"."MITGLIED" VALUES
     (1, NULL, 1, 'n', '', '', 'Mustermann', 'Max', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'm', '', '', '', 'mustermann@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL),
-    (2, NULL, 1, 'n', '', '', 'Musterfrau', 'Anna', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'w', '', '', '', 'musterfrau@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL);
+    (2, NULL, 1, 'n', '', '', 'Musterfrau', 'Anna', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'w', '', '', '', 'musterfrau@example.org', DATE '2020-01-01', 1, NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL),
+    (3, NULL, 1, 'n', '', '', 'Doe', 'Jane', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'w', '', '', '', 'janedoe@example.org', DATE '2020-01-01', 1, NULL, NULL, DATE '2020-06-30', NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL),
+    (4, NULL, 1, 'n', '', '', 'Doe', 'John', '', STRINGDECODE('Musterdorfer Stra\\u00dfe 2'), '12345', 'Musterhausen', '', 2, 1, NULL, 1, 'FRST', '', '', 'n', '', '', '', '', '', '', '', '', '', '', NULL, 'm', '', '', '', 'johndoe@example.org', DATE '2020-01-01', 1, NULL, NULL, DATE '{ (date.today() + timedelta(days=14)).isoformat() }', NULL, NULL, NULL, '', NULL, DATE '2020-01-01', 'm', NULL);
 """)
 
 
@@ -226,11 +229,33 @@ class TestJVereinManager(TestCase):
             j._export_emails()
 
             expected_emails = textwrap.dedent("""\
+                johndoe@example.org
                 musterfrau@example.org
                 mustermann@example.org
             """).strip()
 
             with open(os.path.join(repo_dir, "dump", "mitglieder-emails.csv")) as f:
+                self.assertEqual(expected_emails, f.read().strip())
+
+    def test__export_emails_with_expiry_date(self):
+        with TemporaryDirectory() as tmp_dir:
+            src_dir = os.path.join(os.path.dirname(__file__), "test_jvereinmanager_working_dir")
+            repo_dir = os.path.join(tmp_dir, "repo_dir")
+            shutil.copytree(src_dir, repo_dir)
+
+            jdbc_path = os.path.join(repo_dir, "jameica", "jverein", "h2db", "jverein")
+            self._set_up_jverein_database(jdbc_path)
+
+            j = JVereinManager(repo_dir)
+            j._export_emails_with_expiry_date()
+
+            expected_emails = textwrap.dedent(f"""\
+                "johndoe@example.org","{(date.today() + timedelta(days=14)).isoformat()}"
+                "musterfrau@example.org",
+                "mustermann@example.org",
+            """).strip()
+
+            with open(os.path.join(repo_dir, "dump", "mitglieder-emails-austritt.csv")) as f:
                 self.assertEqual(expected_emails, f.read().strip())
 
     def test__decrypt_passphrase_successful(self):
