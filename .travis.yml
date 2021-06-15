@@ -1,4 +1,6 @@
 if: tag IS present
+language: shell
+os: linux
 jobs:
   include:
     - name: "Windows Build"
@@ -53,7 +55,7 @@ jobs:
         - zip --junk-paths dist/jverein-multiuser_macos.zip dist/jverein-multiuser
         - ls dist
     - name: "Linux Build"
-      os: bionic
+      os: linux
       language: python
       python: 3.7
       before_script:
@@ -76,8 +78,8 @@ deploy:
   skip_cleanup: true
   draft: true
   api_key:
-    secure: IMdBErkH7VhNgs8cXK6NOb7EF1dYmUm74y2NIzD36GHDz9BCYyP1oZD86v6fehdCflCZXWxbojPrGCGC0lHbTUmOxkWtCQaxGp8rso9e4RkaJdevLePOGSxrQZK1ifCGP5lO8bzM8UcuJcF0kvJZSpjs8YM4IshAr6G5kzREaNAZF5v4AQZ6PVrPsaIKtVL4Ye+7hkOx5i8ZwGziPf0DyN6zXj5sQCHgi88K4Z2lDnmDYN1YsM3nWuhVJvL7U1VazuofzscGmTHwYKZx/WAvzsAdWjfdvg9u5TE1EtrR90IBKnxroy2VZ2sdKMFYdZ1HgASFTpS5frVDCRwB9akDytpY1fJMTQTiob/fmN+bMM7ClwjgS4gKAv6TI0+BRYCneGEiVOuYGMVJFZ2KAwWoJN0T/n9IptTJE8LuzT8zGcyVkyZkJ51pOqXj52q55AobMReAuCoapjCY6lB+3bdT11TuYyfOKx31G4EVd/ed2RFpF7Hq4ktYpN7RpMQDfe3cvTWcuqQ/tZQ46ZUSpWhjAXzZf+S1DeT/KyniInKi7Vz5W40ZnQtI/9Bbqa/M83U34sIpdcrHSM/Gj3LcFyPBLbGzwDVyKsnrg/iWq+ulACkoUclXZinztLwvLCj5+ACzxXGFhalAZsu7HmkO9HhlMqzjT7Tzm1eiRxcEqeh2taU=
+    secure: "ExFtTNkbE52Cw8bchk3svE8MT4rnjpUssxPLDD29R2F+WeMyh7gzdUtJ1isy1l/iDch3RzLkmcHj+u/kMX865Qw/gp/Y40JlVoPA6hwagFDS0NwVRlfx76mUBMplbnV4rUmKkE+GtIYzBlZW9UhTaOABfgjayQPbS837UjwKoHAL/SREc9sEgptgcTWXmiszQ0XTUiCBohzN9mjTvuDA6qWIjQ21nXssCBlSpxIif84KfZLzKOPVBZJD5lVZBuWUNWoTxOmJRO5BmFVwggNcyOrpvBXD7fP9PSvq3Wpk3EtiHGrF1INsLuzOr4G1uy+Qm5DXtFcS2UHMowJhAurTx8JceA1NQN+D71ALis758c8GDZ1ryBB3bbnww7R2ve5v61K2XMwNMQyXGZWnd8JAIeqfeKNOa/fOLA3ePsbjbVFqoJ2Lq9CcejY3qoPLL63lnd0RQQV+OAUOe5Q5ER4Psfylzm/rZBrPkBt7/Ep7+RB1sHAP/rfjfppIPHfD4kz2xvfloaF0QOTgK/vTTLvgA+Rpw5dQvBdunJ8hyexlBwFzenoYbD/rF4vgOytnhuhChmdQci5jQbkgxmA3nrKMRoaluIRcN5lXOnyeBb4c7j+BanmFcoBbUajlcRgaEJoPzwh70MPGYn7FlXJGgq7hbjMn4UN5tWSkC9PxjG9KoxQ="
   on:
     tags: true
     repo: fkuersch/jverein-multiuser
-    branch: master
+    all_branches: true
