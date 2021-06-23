@@ -207,7 +207,7 @@ class App:
             print("Benutzerspezifische Jameica-Einstellungen konnten nicht gelesen werden und werden zurückgesetzt.")
             self._jameica_user_properties = {}
 
-    def _clone_repo_if_necessarry(self):
+    def _clone_repo_if_necessary(self):
         if not self._gitlocker.is_local_repo_available():
             print(textwrap.dedent("""\
                 Das Repository ist noch nicht eingerichtet.
@@ -232,7 +232,7 @@ class App:
             else:
                 raise CancelAppException()
 
-    def _create_gitignore_if_necessarry(self):
+    def _create_gitignore_if_necessary(self):
         repo_gitignore_path = os.path.join(self._local_repo_dir, ".gitignore")
         if not os.path.exists(repo_gitignore_path):
             print("Lege .gitignore-Datei an.")
@@ -272,7 +272,7 @@ class App:
                 h2_jar_dir=self._path_h2_dir
             )
 
-            self._clone_repo_if_necessarry()
+            self._clone_repo_if_necessary()
 
             # now, the repo exists
             self._read_repo_config_file()
@@ -322,7 +322,7 @@ class App:
     def _pull_and_lock(self):
         print("Lade Änderungen herunter und fordere exklusiven Zugriff an.")
         self._gitlocker.pull_and_lock()
-        self._create_gitignore_if_necessarry()
+        self._create_gitignore_if_necessary()
 
     def _upload_changes(self):
         self._write_repo_config_file()
