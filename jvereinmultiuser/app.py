@@ -12,6 +12,7 @@ import traceback
 import configparser
 from typing import Optional
 from getpass import getpass
+import jvereinmultiuser.hooks as hooks
 from jvereinmultiuser.gitlocker import GitLocker, GitError, IsLockedError
 from jvereinmultiuser.jvereinmanager import (
     JVereinManager, JameicaVersionDiffersError, DecryptionError,
@@ -334,6 +335,8 @@ class App:
 
         print("Lokale Änderungen werden hochgeladen")
         self._gitlocker.push()
+
+        hooks.run_hook(hooks.PostUploadHook, self._local_repo_dir)
 
     def _ask_and_upload(self):
         print("    Möchtest Du jetzt die Änderungen hochladen?")
