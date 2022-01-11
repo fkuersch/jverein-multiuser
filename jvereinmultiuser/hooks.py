@@ -52,6 +52,12 @@ def run_hook(hook: Type[GenericHook], local_repo_dir: str):
         script_name = hook.linux_script
     script_path = os.path.join(local_repo_dir, "hooks", script_name)
 
-    if os.path.isfile(script_path):
-        print(f"Führe Hook aus: {hook.name}")
-        subprocess.run(script_path)
+    if not os.path.isfile(script_path):
+        return  # ignore non-existing hook
+
+    if not os.access(script_path, os.X_OK):
+        print(f"FEHLER: Das Hook-Script ist nicht ausführbar: '{script_path}'")
+        return
+
+    print(f"Führe Hook aus: {hook.name}")
+    subprocess.run(script_path)
