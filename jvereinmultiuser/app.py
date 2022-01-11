@@ -244,6 +244,7 @@ class App:
         try:
             self._check_for_updates()
             self._setup_working_dir()
+            hooks.create_example_files_if_necessary(self._working_dir)
             self._read_user_config_file()
             self._read_jameica_config_file()
 
