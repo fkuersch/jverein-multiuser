@@ -10,7 +10,7 @@ import requests
 import textwrap
 import traceback
 import configparser
-from typing import Optional
+from typing import Optional, Type
 from getpass import getpass
 import jvereinmultiuser.hooks as hooks
 from jvereinmultiuser.gitlocker import GitLocker, GitError, IsLockedError
@@ -240,11 +240,27 @@ class App:
             with open(repo_gitignore_path, "wb") as f:
                 f.write(gitignore_data)
 
+    def _run_hook_and_retry_on_failure(self, hook: Type[hooks.GenericHook]):
+        response = "j"
+        while response == "j":
+            try:
+                hooks.run_hook(hook, self._local_repo_dir)
+                break
+            except hooks.HookExecutionError as e:
+                print(textwrap.dedent(f"""\
+                    Es ist ein Fehler beim Ausführen des Hook-Scripts aufgetreten ({e.message}).
+                    Möchtest Du das Script erneut starten?
+                    
+                        (j) Ja
+                        (n) Nein
+                """))
+                response = self._user_input(["j", "n"])
+
     def run(self):
         try:
             self._check_for_updates()
             self._setup_working_dir()
-            hooks.create_example_files_if_necessary(self._working_dir)
+            hooks.create_example_files_if_necessary(self._local_repo_dir)
             self._read_user_config_file()
             self._read_jameica_config_file()
 
@@ -337,7 +353,7 @@ class App:
         print("Lokale Änderungen werden hochgeladen")
         self._gitlocker.push()
 
-        hooks.run_hook(hooks.PostUploadHook, self._local_repo_dir)
+        self._run_hook_and_retry_on_failure(hooks.PostUploadHook)
 
     def _ask_and_upload(self):
         print("    Möchtest Du jetzt die Änderungen hochladen?")

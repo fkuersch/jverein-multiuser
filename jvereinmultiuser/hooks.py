@@ -22,6 +22,12 @@ class PostUploadHook(GenericHook):
 _ALL_HOOKS = [PostUploadHook]
 
 
+class HookExecutionError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super(HookExecutionError, self).__init__(self.message)
+
+
 def _create_example_file_name(script_name):
     parts = script_name.split(".")
     parts.insert(-1, "example")
@@ -41,6 +47,7 @@ def create_example_files_if_necessary(local_repo_dir):
                 script_data = pkgutil.get_data("jvereinmultiuser", resource_script_path)
                 with open(dst_script_path, "wb") as f:
                     f.write(script_data)
+                os.chmod(dst_script_path, 0o764)
 
 
 def run_hook(hook: Type[GenericHook], local_repo_dir: str):
@@ -56,8 +63,10 @@ def run_hook(hook: Type[GenericHook], local_repo_dir: str):
         return  # ignore non-existing hook
 
     if not os.access(script_path, os.X_OK):
-        print(f"FEHLER: Das Hook-Script ist nicht ausführbar: '{script_path}'")
-        return
+        raise HookExecutionError(message=f"nicht ausführbar: '{script_path}'")
 
     print(f"Führe Hook aus: {hook.name}")
-    subprocess.run(script_path)
+    proc = subprocess.run(script_path)
+    if proc.returncode != 0:
+        raise HookExecutionError(message=f"returncode {proc.returncode}")
+

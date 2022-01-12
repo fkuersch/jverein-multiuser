@@ -8,6 +8,8 @@ from unittest import TestCase
 
 import jvereinmultiuser.hooks as hooks
 
+# TODO tests work on macOS only
+
 
 class TestHooks(TestCase):
     def setUp(self) -> None:
@@ -39,7 +41,6 @@ class TestHooks(TestCase):
 
     def test_post_upload_hook(self):
         with tempfile.TemporaryDirectory() as local_repo_dir:
-            # TODO test works for macOS only
             hooks_dir = os.path.join(local_repo_dir, "hooks")
             script_path = os.path.join(hooks_dir, hooks.PostUploadHook.macos_script)
             test_file = os.path.join(local_repo_dir, "test_file")
@@ -50,9 +51,35 @@ class TestHooks(TestCase):
                     echo "creating test file: {test_file}"
                     echo "test" > {test_file}
                     """.lstrip()))
-            os.chmod(script_path, 0o755)
+            os.chmod(script_path, 0o764)
             hooks.run_hook(hooks.PostUploadHook, local_repo_dir)
             self.assertTrue(os.path.exists(test_file))
+
+    def test_post_upload_hook_not_executable(self):
+        with tempfile.TemporaryDirectory() as local_repo_dir:
+            hooks_dir = os.path.join(local_repo_dir, "hooks")
+            script_path = os.path.join(hooks_dir, hooks.PostUploadHook.macos_script)
+            os.makedirs(hooks_dir)
+            with open(script_path, "w") as f:
+                f.write(textwrap.dedent(f"""
+                    #!/bin/bash
+                    echo "this should never be displayed"
+                    """.lstrip()))
+            os.chmod(script_path, 0o664)
+            self.assertRaisesRegex(hooks.HookExecutionError, "nicht ausführbar", hooks.run_hook, hooks.PostUploadHook, local_repo_dir)
+
+    def test_post_upload_hook_error(self):
+        with tempfile.TemporaryDirectory() as local_repo_dir:
+            hooks_dir = os.path.join(local_repo_dir, "hooks")
+            script_path = os.path.join(hooks_dir, hooks.PostUploadHook.macos_script)
+            os.makedirs(hooks_dir)
+            with open(script_path, "w") as f:
+                f.write(textwrap.dedent(f"""
+                    #!/bin/bash
+                    exit 42
+                    """.lstrip()))
+            os.chmod(script_path, 0o764)
+            self.assertRaisesRegex(hooks.HookExecutionError, "returncode 42", hooks.run_hook, hooks.PostUploadHook, local_repo_dir)
 
 
 if __name__ == '__main__':
