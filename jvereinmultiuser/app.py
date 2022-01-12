@@ -260,7 +260,6 @@ class App:
         try:
             self._check_for_updates()
             self._setup_working_dir()
-            hooks.create_example_files_if_necessary(self._local_repo_dir)
             self._read_user_config_file()
             self._read_jameica_config_file()
 
@@ -340,6 +339,7 @@ class App:
         print("Lade Änderungen herunter und fordere exklusiven Zugriff an.")
         self._gitlocker.pull_and_lock()
         self._create_gitignore_if_necessary()
+        hooks.create_example_files_if_necessary(self._local_repo_dir)
 
     def _upload_changes(self):
         self._write_repo_config_file()
