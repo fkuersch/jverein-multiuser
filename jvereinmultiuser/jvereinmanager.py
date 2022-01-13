@@ -525,7 +525,7 @@ class JVereinManager:
         sql_statement = textwrap.dedent(r"""
             CALL CSVWRITE(
                 'mitglieder-emails-austritt.csv', 
-                'SELECT LOWER(email), austritt FROM mitglied 
+                'SELECT id, externemitgliedsnummer, LOWER(email), austritt FROM mitglied 
                     WHERE eintritt <= CURDATE() 
                         AND (austritt IS NULL OR austritt >= CURDATE()) 
                     ORDER BY LOWER(email)', 

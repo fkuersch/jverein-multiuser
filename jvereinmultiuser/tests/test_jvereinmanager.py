@@ -250,9 +250,9 @@ class TestJVereinManager(TestCase):
             j._export_emails_with_expiry_date()
 
             expected_emails = textwrap.dedent(f"""\
-                "johndoe@example.org","{(date.today() + timedelta(days=14)).isoformat()}"
-                "musterfrau@example.org",
-                "mustermann@example.org",
+                "4",,"johndoe@example.org","{(date.today() + timedelta(days=14)).isoformat()}"
+                "2",,"musterfrau@example.org",
+                "1",,"mustermann@example.org",
             """).strip()
 
             with open(os.path.join(repo_dir, "dump", "mitglieder-emails-austritt.csv")) as f:
