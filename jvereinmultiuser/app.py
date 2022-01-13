@@ -19,7 +19,7 @@ from jvereinmultiuser.jvereinmanager import (
     DEFAULT_JAMEICA_EXEC_PATH, DEFAULT_PLUGIN_XML_PATH, DEFAULT_JAVA_PATH, DEFAULT_H2_DIR)
 
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 _VERSION_URL = "https://github.com/fkuersch/jverein-multiuser/releases/latest/download/VERSION"
 _RELEASE_URL = "https://github.com/fkuersch/jverein-multiuser/releases/latest"
